@@ -1,0 +1,152 @@
+<%- include('partials/header', { title: 'User Management', activePage: 'users' }) %>
+
+<% if (success) { %>
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <%= success %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<% } %>
+<% if (error) { %>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <%= error %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<% } %>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h5 class="m-0">User Management</h5>
+        <small class="text-muted">Tambah user dan reset password akun lain.</small>
+    </div>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+        <i class="fas fa-user-plus"></i> Add User
+    </button>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Username</th>
+                        <th>Full Name</th>
+                        <th>Role</th>
+                        <th>Created</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% users.forEach((user, index) => { %>
+                        <tr>
+                            <td><%= index + 1 %></td>
+                            <td><strong><%= user.username %></strong></td>
+                            <td><%= user.full_name %></td>
+                            <td>
+                                <span class="badge <%= user.role === 'admin' ? 'bg-danger' : 'bg-secondary' %>">
+                                    <%= user.role %>
+                                </span>
+                            </td>
+                            <td><%= new Date(user.created_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) %></td>
+                            <td>
+                                <% if (Number(user.id) !== Number(userId)) { %>
+                                    <button type="button" class="btn btn-sm btn-outline-warning reset-password-btn"
+                                        data-user-id="<%= user.id %>" data-username="<%= user.username %>">
+                                        <i class="fas fa-key"></i> Reset Password
+                                    </button>
+                                <% } else { %>
+                                    <a href="/change-password" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-key"></i> Change My Password
+                                    </a>
+                                <% } %>
+                            </td>
+                        </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addUserModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="/users" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Username</label>
+                        <input type="text" class="form-control" name="username" minlength="3" maxlength="50" pattern="[A-Za-z0-9._-]+" autocomplete="username" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Full Name</label>
+                        <input type="text" class="form-control" name="full_name" minlength="2" maxlength="100" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Role</label>
+                        <select class="form-select" name="role">
+                            <option value="user" selected>User</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Password</label>
+                        <input type="password" class="form-control" name="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" name="password_confirmation" minlength="8" maxlength="128" autocomplete="new-password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="resetPasswordModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="resetPasswordForm" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Reset Password</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Reset password untuk <strong id="resetUsername"></strong>.</p>
+                    <div class="mb-3">
+                        <label class="form-label">New Password</label>
+                        <input type="password" class="form-control" name="password" minlength="8" maxlength="128" autocomplete="new-password" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Confirm Password</label>
+                        <input type="password" class="form-control" name="password_confirmation" minlength="8" maxlength="128" autocomplete="new-password" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning">Reset Password</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.reset-password-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+        document.getElementById('resetUsername').textContent = button.dataset.username;
+        document.getElementById('resetPasswordForm').action = `/users/${button.dataset.userId}/password`;
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('resetPasswordModal')).show();
+    });
+});
+</script>
+
+<%- include('partials/footer') %>

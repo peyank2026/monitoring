@@ -40,6 +40,8 @@ app.use(session({
 app.use((req, res, next) => {
   res.locals.username = req.session.username || null;
   res.locals.fullName = req.session.fullName || null;
+  res.locals.userRole = req.session.userRole || null;
+  res.locals.userId = req.session.userId || null;
   next();
 });
 
@@ -47,11 +49,13 @@ app.use((req, res, next) => {
 // Routes
 // ===========================================
 const authRoutes = require('./routes/auth');
+const userRoutes = require('./routes/users');
 const deviceRoutes = require('./routes/devices');
 const hostRoutes = require('./routes/hosts');
 const monitoringRoutes = require('./routes/monitoring');
 
 app.use('/', authRoutes);
+app.use('/', userRoutes);
 app.use('/', deviceRoutes);
 app.use('/', hostRoutes);
 app.use('/', monitoringRoutes);

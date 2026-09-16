@@ -9,4 +9,12 @@ function isAuthenticated(req, res, next) {
   res.redirect('/login');
 }
 
-module.exports = { isAuthenticated };
+function isAdmin(req, res, next) {
+  if (req.session && req.session.userRole === 'admin') {
+    return next();
+  }
+
+  res.redirect('/dashboard');
+}
+
+module.exports = { isAuthenticated, isAdmin };

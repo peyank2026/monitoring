@@ -9,6 +9,7 @@ Dashboard monitoring jaringan berbasis Node.js untuk memantau switch melalui SNM
 - Trafik masuk/keluar per interface dengan rentang 6 jam sampai 2 tahun.
 - Monitoring ICMP dengan latency minimum, rata-rata, maksimum, dan packet loss.
 - Grafik latency bergaya SmokePing.
+- User Management untuk menambah user, mengganti password sendiri, dan reset password oleh admin.
 - Waktu database dan tampilan menggunakan WIB (UTC+7).
 - Pembersihan otomatis data monitoring yang lebih lama dari 2 tahun.
 
@@ -47,6 +48,14 @@ Dashboard monitoring jaringan berbasis Node.js untuk memantau switch melalui SNM
 
 5. Buka `http://localhost:3000`.
 
+### Upgrade database lama
+
+Jika database dibuat sebelum fitur User Management tersedia, jalankan migrasi berikut satu kali:
+
+```bash
+mariadb -u root -p < db/migrations/001_user_management.sql
+```
+
 ## Konfigurasi
 
 Variabel lingkungan utama tersedia di `.env.example`:
@@ -71,4 +80,3 @@ Untuk menjalankan server dengan auto-reload:
 ```bash
 npm run dev
 ```
-

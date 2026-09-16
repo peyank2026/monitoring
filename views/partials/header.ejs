@@ -24,9 +24,17 @@
                 <a href="/devices" class="<%= typeof activePage !== 'undefined' && activePage === 'devices' ? 'active' : '' %>">
                     <i class="fas fa-server"></i> Devices
                 </a>
+                <% if (typeof userRole !== 'undefined' && userRole === 'admin') { %>
+                    <a href="/users" class="<%= typeof activePage !== 'undefined' && activePage === 'users' ? 'active' : '' %>">
+                        <i class="fas fa-users-cog"></i> User Management
+                    </a>
+                <% } %>
             </nav>
             <div class="sidebar-footer">
                 <small>Logged in as: <%= fullName || username %></small><br>
+                <a href="/change-password" class="text-white mt-2 d-inline-block text-decoration-none">
+                    <i class="fas fa-key"></i> Change Password
+                </a><br>
                 <a href="/logout" class="text-white mt-2 d-inline-block text-decoration-none">
                     <i class="fas fa-sign-out-alt"></i> Logout
                 </a>

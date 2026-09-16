@@ -16,6 +16,7 @@ CREATE TABLE IF NOT EXISTS users (
   username VARCHAR(50) UNIQUE NOT NULL,
   password VARCHAR(255) NOT NULL,
   full_name VARCHAR(100),
+  role ENUM('admin', 'user') NOT NULL DEFAULT 'user',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
@@ -100,9 +101,9 @@ CREATE TABLE IF NOT EXISTS interface_data (
 -- --------------------------------------------
 -- Default admin user (password: admin123)
 -- --------------------------------------------
-INSERT INTO users (username, password, full_name)
-VALUES ('admin', '$2a$10$Vo/ImAuzrqYweB3SUYnKx.rPfXTkh.IQ2ZQwiJRr0/g1FPssJCs3i', 'Administrator')
-ON DUPLICATE KEY UPDATE password = VALUES(password);
+INSERT INTO users (username, password, full_name, role)
+VALUES ('admin', '$2a$10$Vo/ImAuzrqYweB3SUYnKx.rPfXTkh.IQ2ZQwiJRr0/g1FPssJCs3i', 'Administrator', 'admin')
+ON DUPLICATE KEY UPDATE full_name = VALUES(full_name), role = 'admin';
 
 -- --------------------------------------------
 -- Auto-cleanup event (keep up to 2 years for long-range charts)

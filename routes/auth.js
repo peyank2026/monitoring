@@ -24,7 +24,7 @@ router.post('/login', async (req, res) => {
   try {
     conn = await pool.getConnection();
     const rows = await conn.query(
-      'SELECT id, username, password, full_name FROM users WHERE username = ?',
+      'SELECT id, username, password, full_name, role FROM users WHERE username = ?',
       [username]
     );
 
@@ -43,6 +43,7 @@ router.post('/login', async (req, res) => {
     req.session.userId = user.id;
     req.session.username = user.username;
     req.session.fullName = user.full_name;
+    req.session.userRole = user.role;
 
     res.redirect('/dashboard');
   } catch (err) {
