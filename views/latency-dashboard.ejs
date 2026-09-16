@@ -75,9 +75,20 @@
                     <option value="24h" selected>24 Jam</option>
                     <option value="7d">7 Hari</option>
                     <option value="30d">30 Hari</option>
+                    <option value="custom">Pilih tanggal &amp; jam</option>
                 </select>
                 <button class="btn-close" onclick="hideLatencyChart()" aria-label="Close chart"></button>
             </div>
+        </div>
+        <div class="chart-custom-range d-none" id="latencyCustomRange">
+            <label for="latencyStartAt">Dari</label>
+            <input type="datetime-local" class="form-control form-control-sm" id="latencyStartAt" step="60">
+            <label for="latencyEndAt">Sampai</label>
+            <input type="datetime-local" class="form-control form-control-sm" id="latencyEndAt" step="60">
+            <button type="button" class="btn btn-sm btn-primary" id="latencyCustomUpdate" onclick="applyLatencyCustomRange()">
+                <i class="fas fa-rotate me-1"></i>Update
+            </button>
+            <span class="chart-range-error" id="latencyRangeError" role="alert"></span>
         </div>
         <div class="latency-chart-plot">
             <canvas id="latencyChart"></canvas>

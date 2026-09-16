@@ -2,6 +2,8 @@ let trafficChartInstance = null;
 let opticalChartInstance = null;
 let currentTrafficSelection = null;
 
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+
 const TRAFFIC_RANGE_LABELS = {
     '6h': '6 Jam',
     '12h': '12 Jam',
@@ -155,6 +157,74 @@ async function showCharts(deviceId, ifIndex, ifName) {
 
 async function changeTrafficRange() {
     if (!currentTrafficSelection) return;
+    const range = document.getElementById('trafficRange')?.value || '24h';
+    toggleTrafficCustomRange(range === 'custom');
+    if (range === 'custom') return;
+
+    const { deviceId, ifIndex, ifName } = currentTrafficSelection;
+    await loadTrafficChart(deviceId, ifIndex, ifName);
+}
+
+function formatWibDateTimeInput(date) {
+    return new Date(date.getTime() + WIB_OFFSET_MS).toISOString().slice(0, 16);
+}
+
+function setTrafficCustomDefaults() {
+    const startInput = document.getElementById('trafficStartAt');
+    const endInput = document.getElementById('trafficEndAt');
+    if (!startInput || !endInput || (startInput.value && endInput.value)) return;
+
+    const end = new Date();
+    end.setSeconds(0, 0);
+    const start = new Date(end.getTime() - (24 * 60 * 60 * 1000));
+    startInput.value = formatWibDateTimeInput(start);
+    endInput.value = formatWibDateTimeInput(end);
+}
+
+function toggleTrafficCustomRange(show) {
+    const customRange = document.getElementById('trafficCustomRange');
+    if (!customRange) return;
+    customRange.classList.toggle('d-none', !show);
+    if (show) setTrafficCustomDefaults();
+    updateTrafficStat('trafficRangeError', '');
+}
+
+function getTrafficRangeRequest(range) {
+    if (range !== 'custom') {
+        return {
+            query: `range=${encodeURIComponent(range)}`,
+            label: TRAFFIC_RANGE_LABELS[range] || TRAFFIC_RANGE_LABELS['24h']
+        };
+    }
+
+    const start = document.getElementById('trafficStartAt')?.value;
+    const end = document.getElementById('trafficEndAt')?.value;
+    if (!start || !end) {
+        updateTrafficStat('trafficRangeError', 'Tanggal dan jam mulai serta selesai wajib diisi.');
+        return null;
+    }
+    if (end <= start) {
+        updateTrafficStat('trafficRangeError', 'Waktu selesai harus setelah waktu mulai.');
+        return null;
+    }
+
+    updateTrafficStat('trafficRangeError', '');
+    const labelOptions = {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta'
+    };
+    const startLabel = new Date(`${start}:00+07:00`).toLocaleString('id-ID', labelOptions);
+    const endLabel = new Date(`${end}:00+07:00`).toLocaleString('id-ID', labelOptions);
+    return {
+        query: `start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+        label: `${startLabel} – ${endLabel}`
+    };
+}
+
+async function applyTrafficCustomRange() {
+    if (!currentTrafficSelection) return;
+    const rangeRequest = getTrafficRangeRequest('custom');
+    if (!rangeRequest) return;
     const { deviceId, ifIndex, ifName } = currentTrafficSelection;
     await loadTrafficChart(deviceId, ifIndex, ifName);
 }
@@ -167,6 +237,12 @@ function formatTrafficTimestamp(value, range) {
         });
     }
     if (['1w', '2w'].includes(range)) {
+        return date.toLocaleString('id-ID', {
+            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+            timeZone: 'Asia/Jakarta'
+        });
+    }
+    if (range === 'custom') {
         return date.toLocaleString('id-ID', {
             day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
             timeZone: 'Asia/Jakarta'
@@ -249,24 +325,33 @@ const trafficChartAreaPlugin = {
 async function loadTrafficChart(deviceId, ifIndex, ifName) {
     const rangeSelect = document.getElementById('trafficRange');
     const range = rangeSelect?.value || '24h';
+    const rangeRequest = getTrafficRangeRequest(range);
+    if (!rangeRequest) return;
     const title = document.getElementById('trafficChartTitle');
 
     const chartEmpty = document.getElementById('trafficChartEmpty');
     const chartMeta = document.getElementById('trafficChartMeta');
     if (title) title.textContent = `Traffic ${ifName}`;
-    if (chartMeta) chartMeta.textContent = `${TRAFFIC_RANGE_LABELS[range]} · waktu WIB`;
+    if (chartMeta) chartMeta.textContent = `${rangeRequest.label} · waktu WIB`;
     if (chartEmpty) {
         chartEmpty.textContent = 'Memuat histori trafik…';
         chartEmpty.classList.remove('d-none', 'is-error');
     }
     if (rangeSelect) rangeSelect.disabled = true;
+    ['trafficStartAt', 'trafficEndAt', 'trafficCustomUpdate'].forEach(id => {
+        const control = document.getElementById(id);
+        if (control) control.disabled = true;
+    });
 
     try {
-        const res = await fetch(`/api/traffic-history/${deviceId}/${ifIndex}?range=${encodeURIComponent(range)}`);
+        const res = await fetch(`/api/traffic-history/${deviceId}/${ifIndex}?${rangeRequest.query}`);
         let data = [];
         if (res.ok) {
             const json = await res.json();
             data = Array.isArray(json) ? json : (json.data || []);
+        } else {
+            const json = await res.json().catch(() => ({}));
+            throw new Error(json.error || 'Failed to load traffic history');
         }
         
         if (!Array.isArray(data)) data = [];
@@ -425,6 +510,7 @@ async function loadTrafficChart(deviceId, ifIndex, ifName) {
         });
     } catch (e) {
         console.error('Failed to load MRTG traffic chart', e);
+        if (range === 'custom') updateTrafficStat('trafficRangeError', e.message);
         if (chartEmpty) {
             chartEmpty.textContent = 'Histori trafik gagal dimuat. Silakan coba lagi.';
             chartEmpty.classList.remove('d-none');
@@ -432,6 +518,10 @@ async function loadTrafficChart(deviceId, ifIndex, ifName) {
         }
     } finally {
         if (rangeSelect) rangeSelect.disabled = false;
+        ['trafficStartAt', 'trafficEndAt', 'trafficCustomUpdate'].forEach(id => {
+            const control = document.getElementById(id);
+            if (control) control.disabled = false;
+        });
     }
 }
 

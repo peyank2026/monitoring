@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
 const { isValidHostAddress, checkHost, checkAllHosts } = require('../services/icmp-monitor');
+const { resolveCustomHistoryRange } = require('../utils/history-range');
 
 const router = express.Router();
 
@@ -53,11 +54,19 @@ router.get('/latency', isAuthenticated, async (req, res) => {
 });
 
 router.get('/api/icmp-history/:hostId', isAuthenticated, async (req, res) => {
-  const rangeKey = Object.hasOwn(ICMP_HISTORY_RANGES, req.query.range) ? req.query.range : '24h';
-  const range = ICMP_HISTORY_RANGES[rangeKey];
   let conn;
 
   try {
+    const customRange = resolveCustomHistoryRange(req.query);
+    const rangeKey = customRange
+      ? 'custom'
+      : (Object.hasOwn(ICMP_HISTORY_RANGES, req.query.range) ? req.query.range : '24h');
+    const range = customRange || ICMP_HISTORY_RANGES[rangeKey];
+    const timeCondition = customRange
+      ? 'checked_at >= ? AND checked_at <= ?'
+      : `checked_at >= DATE_SUB(NOW(), INTERVAL ${range.intervalSql}) AND checked_at <= NOW()`;
+    const timeParams = customRange ? [customRange.start.sql, customRange.end.sql] : [];
+
     conn = await pool.getConnection();
     const data = await conn.query(`
       SELECT
@@ -68,15 +77,22 @@ router.get('/api/icmp-history/:hostId', isAuthenticated, async (req, res) => {
         FROM_UNIXTIME(FLOOR(UNIX_TIMESTAMP(checked_at) / ?) * ?) AS checked_at
       FROM icmp_data
       WHERE host_id = ?
-        AND checked_at >= DATE_SUB(NOW(), INTERVAL ${range.intervalSql})
-        AND checked_at <= NOW()
+        AND ${timeCondition}
       GROUP BY FLOOR(UNIX_TIMESTAMP(checked_at) / ?)
       ORDER BY checked_at
-    `, [range.bucketSeconds, range.bucketSeconds, req.params.hostId, range.bucketSeconds]);
+    `, [
+      range.bucketSeconds,
+      range.bucketSeconds,
+      req.params.hostId,
+      ...timeParams,
+      range.bucketSeconds
+    ]);
 
     res.json({
       success: true,
       range: rangeKey,
+      start: customRange?.start.input || null,
+      end: customRange?.end.input || null,
       data: data.map(row => ({
         min_latency_ms: row.min_latency_ms === null ? null : Number(row.min_latency_ms),
         avg_latency_ms: row.avg_latency_ms === null ? null : Number(row.avg_latency_ms),
@@ -87,7 +103,10 @@ router.get('/api/icmp-history/:hostId', isAuthenticated, async (req, res) => {
     });
   } catch (error) {
     console.error('Error loading ICMP history:', error);
-    res.status(500).json({ success: false, error: 'Gagal memuat histori ICMP' });
+    res.status(error.statusCode || 500).json({
+      success: false,
+      error: error.statusCode ? error.message : 'Gagal memuat histori ICMP'
+    });
   } finally {
     if (conn) conn.release();
   }

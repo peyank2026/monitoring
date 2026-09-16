@@ -63,9 +63,20 @@
                             <option value="6mo">6 Bulan</option>
                             <option value="1y">1 Tahun</option>
                             <option value="2y">2 Tahun</option>
+                            <option value="custom">Pilih tanggal &amp; jam</option>
                         </select>
                         <button class="btn-close" onclick="hideCharts()" aria-label="Close chart"></button>
                     </div>
+                </div>
+                <div class="chart-custom-range d-none" id="trafficCustomRange">
+                    <label for="trafficStartAt">Dari</label>
+                    <input type="datetime-local" class="form-control form-control-sm" id="trafficStartAt" step="60">
+                    <label for="trafficEndAt">Sampai</label>
+                    <input type="datetime-local" class="form-control form-control-sm" id="trafficEndAt" step="60">
+                    <button type="button" class="btn btn-sm btn-primary" id="trafficCustomUpdate" onclick="applyTrafficCustomRange()">
+                        <i class="fas fa-rotate me-1"></i>Update
+                    </button>
+                    <span class="chart-range-error" id="trafficRangeError" role="alert"></span>
                 </div>
                 <div class="traffic-chart-plot">
                     <canvas id="trafficChart"></canvas>

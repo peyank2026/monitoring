@@ -2,6 +2,7 @@ let latencyChartInstance = null;
 let currentLatencyHost = null;
 
 const LATENCY_TIMEZONE = 'Asia/Jakarta';
+const LATENCY_WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
 
 const LATENCY_RANGE_LABELS = {
     '6h': '6 Jam',
@@ -33,6 +34,12 @@ function formatLatencyTimestamp(value, range) {
         });
     }
     if (range === '7d') {
+        return date.toLocaleString('id-ID', {
+            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+            timeZone: LATENCY_TIMEZONE
+        });
+    }
+    if (range === 'custom') {
         return date.toLocaleString('id-ID', {
             day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
             timeZone: LATENCY_TIMEZONE
@@ -154,7 +161,71 @@ function hideLatencyChart() {
 }
 
 function changeLatencyRange() {
-    if (currentLatencyHost) loadLatencyChart();
+    if (!currentLatencyHost) return;
+    const range = document.getElementById('latencyRange')?.value || '24h';
+    toggleLatencyCustomRange(range === 'custom');
+    if (range !== 'custom') loadLatencyChart();
+}
+
+function formatLatencyWibInput(date) {
+    return new Date(date.getTime() + LATENCY_WIB_OFFSET_MS).toISOString().slice(0, 16);
+}
+
+function setLatencyCustomDefaults() {
+    const startInput = document.getElementById('latencyStartAt');
+    const endInput = document.getElementById('latencyEndAt');
+    if (!startInput || !endInput || (startInput.value && endInput.value)) return;
+
+    const end = new Date();
+    end.setSeconds(0, 0);
+    const start = new Date(end.getTime() - (24 * 60 * 60 * 1000));
+    startInput.value = formatLatencyWibInput(start);
+    endInput.value = formatLatencyWibInput(end);
+}
+
+function toggleLatencyCustomRange(show) {
+    const customRange = document.getElementById('latencyCustomRange');
+    if (!customRange) return;
+    customRange.classList.toggle('d-none', !show);
+    if (show) setLatencyCustomDefaults();
+    updateLatencyText('latencyRangeError', '');
+}
+
+function getLatencyRangeRequest(range) {
+    if (range !== 'custom') {
+        return {
+            query: `range=${encodeURIComponent(range)}`,
+            label: LATENCY_RANGE_LABELS[range] || LATENCY_RANGE_LABELS['24h']
+        };
+    }
+
+    const start = document.getElementById('latencyStartAt')?.value;
+    const end = document.getElementById('latencyEndAt')?.value;
+    if (!start || !end) {
+        updateLatencyText('latencyRangeError', 'Tanggal dan jam mulai serta selesai wajib diisi.');
+        return null;
+    }
+    if (end <= start) {
+        updateLatencyText('latencyRangeError', 'Waktu selesai harus setelah waktu mulai.');
+        return null;
+    }
+
+    updateLatencyText('latencyRangeError', '');
+    const labelOptions = {
+        day: '2-digit', month: 'short', year: 'numeric',
+        hour: '2-digit', minute: '2-digit', timeZone: LATENCY_TIMEZONE
+    };
+    const startLabel = new Date(`${start}:00+07:00`).toLocaleString('id-ID', labelOptions);
+    const endLabel = new Date(`${end}:00+07:00`).toLocaleString('id-ID', labelOptions);
+    return {
+        query: `start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
+        label: `${startLabel} – ${endLabel}`
+    };
+}
+
+async function applyLatencyCustomRange() {
+    if (!currentLatencyHost || !getLatencyRangeRequest('custom')) return;
+    await loadLatencyChart();
 }
 
 async function loadLatencyChart() {
@@ -162,20 +233,26 @@ async function loadLatencyChart() {
 
     const rangeSelect = document.getElementById('latencyRange');
     const range = rangeSelect?.value || '24h';
+    const rangeRequest = getLatencyRangeRequest(range);
+    if (!rangeRequest) return;
     const title = document.getElementById('latencyChartTitle');
     const meta = document.getElementById('latencyChartMeta');
     const emptyState = document.getElementById('latencyChartEmpty');
     title.textContent = `Latency ${currentLatencyHost.hostName}`;
-    if (meta) meta.textContent = `${LATENCY_RANGE_LABELS[range]} · waktu WIB`;
+    if (meta) meta.textContent = `${rangeRequest.label} · waktu WIB`;
     if (emptyState) {
         emptyState.textContent = 'Memuat histori latency…';
         emptyState.classList.remove('d-none', 'is-error');
     }
     rangeSelect.disabled = true;
+    ['latencyStartAt', 'latencyEndAt', 'latencyCustomUpdate'].forEach(id => {
+        const control = document.getElementById(id);
+        if (control) control.disabled = true;
+    });
 
     try {
         const response = await fetch(
-            `/api/icmp-history/${currentLatencyHost.hostId}?range=${encodeURIComponent(range)}`
+            `/api/icmp-history/${currentLatencyHost.hostId}?${rangeRequest.query}`
         );
         const json = await response.json();
         if (!response.ok || !json.success) throw new Error(json.error || 'Failed to load ICMP history');
@@ -403,6 +480,7 @@ async function loadLatencyChart() {
         });
     } catch (error) {
         console.error('Failed to load latency chart', error);
+        if (range === 'custom') updateLatencyText('latencyRangeError', error.message);
         if (emptyState) {
             emptyState.textContent = 'Histori latency gagal dimuat. Silakan coba lagi.';
             emptyState.classList.remove('d-none');
@@ -410,5 +488,9 @@ async function loadLatencyChart() {
         }
     } finally {
         rangeSelect.disabled = false;
+        ['latencyStartAt', 'latencyEndAt', 'latencyCustomUpdate'].forEach(id => {
+            const control = document.getElementById(id);
+            if (control) control.disabled = false;
+        });
     }
 }

@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../config/database');
 const { isAuthenticated } = require('../middleware/auth');
+const { resolveCustomHistoryRange } = require('../utils/history-range');
 const { pollDevice, pollAllDevices } = require('../services/snmp-poller');
 
 const router = express.Router();
@@ -219,11 +220,19 @@ const TRAFFIC_RANGES = {
  */
 router.get('/api/traffic-history/:deviceId/:ifIndex', isAuthenticated, async (req, res) => {
   const { deviceId, ifIndex } = req.params;
-  const rangeKey = Object.hasOwn(TRAFFIC_RANGES, req.query.range) ? req.query.range : '24h';
-  const range = TRAFFIC_RANGES[rangeKey];
   let conn;
 
   try {
+    const customRange = resolveCustomHistoryRange(req.query);
+    const rangeKey = customRange
+      ? 'custom'
+      : (Object.hasOwn(TRAFFIC_RANGES, req.query.range) ? req.query.range : '24h');
+    const range = customRange || TRAFFIC_RANGES[rangeKey];
+    const timeCondition = customRange
+      ? 'polled_at >= ? AND polled_at <= ?'
+      : `polled_at >= DATE_SUB(NOW(), INTERVAL ${range.intervalSql}) AND polled_at <= NOW()`;
+    const timeParams = customRange ? [customRange.start.sql, customRange.end.sql] : [];
+
     conn = await pool.getConnection();
     const data = await conn.query(`
       SELECT
@@ -234,11 +243,17 @@ router.get('/api/traffic-history/:deviceId/:ifIndex', isAuthenticated, async (re
         ) AS polled_at
       FROM interface_data 
       WHERE device_id = ? AND if_index = ? 
-        AND polled_at >= DATE_SUB(NOW(), INTERVAL ${range.intervalSql})
-        AND polled_at <= NOW()
+        AND ${timeCondition}
       GROUP BY FLOOR(UNIX_TIMESTAMP(polled_at) / ?)
       ORDER BY polled_at
-    `, [range.bucketSeconds, range.bucketSeconds, deviceId, ifIndex, range.bucketSeconds]);
+    `, [
+      range.bucketSeconds,
+      range.bucketSeconds,
+      deviceId,
+      ifIndex,
+      ...timeParams,
+      range.bucketSeconds
+    ]);
 
     const formattedData = data.map(row => ({
       in_traffic_bps: Number(row.in_traffic_bps || 0),
@@ -246,10 +261,16 @@ router.get('/api/traffic-history/:deviceId/:ifIndex', isAuthenticated, async (re
       polled_at: row.polled_at
     }));
 
-    res.json({ success: true, range: rangeKey, data: formattedData });
+    res.json({
+      success: true,
+      range: rangeKey,
+      start: customRange?.start.input || null,
+      end: customRange?.end.input || null,
+      data: formattedData
+    });
   } catch (err) {
     console.error('API traffic history error:', err);
-    res.json({ success: false, error: err.message });
+    res.status(err.statusCode || 500).json({ success: false, error: err.message });
   } finally {
     if (conn) conn.release();
   }
