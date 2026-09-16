@@ -54,11 +54,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getDeviceStatus(device) {
-        const isActive = device.is_active === true || Number(device.is_active) === 1;
-        if (!isActive) return 'disabled';
-        if (Number(device.last_poll_success) === 1) return 'online';
-        if (Number(device.last_poll_success) === 0) return 'offline';
-        return 'pending';
+        const allowedStatuses = ['excellent', 'good', 'warning', 'no-data', 'disabled'];
+        return allowedStatuses.includes(device.optical_status) ? device.optical_status : 'no-data';
     }
 
     function updateStatusCell(cell, device, status) {
@@ -67,10 +64,19 @@ document.addEventListener('DOMContentLoaded', () => {
         const badge = document.createElement('span');
         const dot = document.createElement('span');
         badge.className = `device-status status-${status}`;
-        badge.title = device.last_poll_error || '';
         dot.className = 'device-status-dot';
         dot.setAttribute('aria-hidden', 'true');
-        badge.append(dot, status.charAt(0).toUpperCase() + status.slice(1));
+        const labels = {
+            excellent: 'Excellent',
+            good: 'Good',
+            warning: 'Warning',
+            'no-data': 'No Data',
+            disabled: 'Disabled'
+        };
+        badge.title = device.weakest_rx_power !== null && device.weakest_rx_power !== undefined
+            ? `Weakest RX ${Number(device.weakest_rx_power).toFixed(2)} dBm`
+            : (device.last_poll_error || 'Optical data unavailable');
+        badge.append(dot, labels[status]);
         cell.replaceChildren(badge);
     }
 
@@ -132,7 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 .toLowerCase();
             updateStatusCell(row.querySelector('[data-field="status"]'), device, status);
             updateInterfaceCell(row.querySelector('[data-field="interfaces"]'), device);
-            updateAlarmCell(row.querySelector('[data-field="alarms"]'), device.alarm_count);
+            updateAlarmCell(row.querySelector('[data-field="alarms"]'), device.optical_warning_count);
 
             const lastPoll = row.querySelector('[data-field="lastPoll"] .last-poll-time');
             if (lastPoll) {
@@ -177,7 +183,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const result = await response.json();
             if (!response.ok || !result.success) throw new Error(result.error || 'Dashboard refresh failed');
 
-            ['totalDevices', 'onlineDevices', 'offlineDevices', 'totalAlarms'].forEach((key) => {
+            ['totalDevices', 'excellentOptics', 'goodOptics', 'warningOptics'].forEach((key) => {
                 animateNumber(document.querySelector(`[data-stat="${key}"]`), result[key]);
             });
             updateDeviceRows(result.devices);

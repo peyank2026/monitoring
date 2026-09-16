@@ -39,31 +39,31 @@
         <div class="col-sm-6 col-xl-3">
             <article class="stat-card green dashboard-stat-card">
                 <div>
-                    <div class="stat-number" data-stat="onlineDevices"><%= onlineDevices || 0 %></div>
-                    <div class="stat-label">Online</div>
-                    <div class="stat-hint">Responding normally</div>
+                    <div class="stat-number" data-stat="excellentOptics"><%= excellentOptics || 0 %></div>
+                    <div class="stat-label">Excellent RX</div>
+                    <div class="stat-hint">Interfaces ≥ -15 dBm</div>
                 </div>
-                <div class="stat-visual success"><i class="fas fa-signal"></i></div>
+                <div class="stat-visual success"><i class="fas fa-star"></i></div>
             </article>
         </div>
         <div class="col-sm-6 col-xl-3">
-            <article class="stat-card red dashboard-stat-card">
+            <article class="stat-card cyan dashboard-stat-card">
                 <div>
-                    <div class="stat-number" data-stat="offlineDevices"><%= offlineDevices || 0 %></div>
-                    <div class="stat-label">Offline</div>
-                    <div class="stat-hint">Needs attention</div>
+                    <div class="stat-number" data-stat="goodOptics"><%= goodOptics || 0 %></div>
+                    <div class="stat-label">Good RX</div>
+                    <div class="stat-hint">Interfaces -20 to &lt; -15 dBm</div>
                 </div>
-                <div class="stat-visual danger"><i class="fas fa-bolt"></i></div>
+                <div class="stat-visual good"><i class="fas fa-signal"></i></div>
             </article>
         </div>
         <div class="col-sm-6 col-xl-3">
             <article class="stat-card orange dashboard-stat-card">
                 <div>
-                    <div class="stat-number" data-stat="totalAlarms"><%= totalAlarms || 0 %></div>
-                    <div class="stat-label">Optical Alarms</div>
-                    <div class="stat-hint">Interfaces below threshold</div>
+                    <div class="stat-number" data-stat="warningOptics"><%= warningOptics || 0 %></div>
+                    <div class="stat-label">Warning RX</div>
+                    <div class="stat-hint">Interfaces &lt; -20 dBm</div>
                 </div>
-                <div class="stat-visual warning"><i class="fas fa-wave-square"></i></div>
+                <div class="stat-visual warning"><i class="fas fa-triangle-exclamation"></i></div>
             </article>
         </div>
     </section>
@@ -83,9 +83,10 @@
                     </label>
                     <select id="statusFilter" class="form-select form-select-sm" aria-label="Filter device status">
                         <option value="all">All status</option>
-                        <option value="online">Online</option>
-                        <option value="offline">Offline</option>
-                        <option value="pending">Pending</option>
+                        <option value="excellent">Excellent</option>
+                        <option value="good">Good</option>
+                        <option value="warning">Warning</option>
+                        <option value="no-data">No Data</option>
                         <option value="disabled">Disabled</option>
                     </select>
                 </div>
@@ -99,9 +100,9 @@
                             <th>IP Address</th>
                             <th>Vendor</th>
                             <th>Location</th>
-                            <th>Status</th>
+                            <th>Optical Quality</th>
                             <th>Interfaces</th>
-                            <th>Alarms</th>
+                            <th>Warning Ports</th>
                             <th>Last Poll (WIB)</th>
                             <th><span class="visually-hidden">Actions</span></th>
                         </tr>
@@ -109,13 +110,14 @@
                     <tbody id="deviceTableBody">
                         <% if (devices.length > 0) { %>
                             <% devices.forEach((dev) => {
-                                const deviceStatus = !dev.is_active
-                                    ? 'disabled'
-                                    : dev.last_poll_success === 1
-                                        ? 'online'
-                                        : dev.last_poll_success === 0
-                                            ? 'offline'
-                                            : 'pending';
+                                const deviceStatus = dev.optical_status || 'no-data';
+                                const deviceStatusLabel = {
+                                    excellent: 'Excellent',
+                                    good: 'Good',
+                                    warning: 'Warning',
+                                    'no-data': 'No Data',
+                                    disabled: 'Disabled'
+                                }[deviceStatus];
                                 const interfacePercent = dev.interface_count > 0
                                     ? Math.round((dev.up_count / dev.interface_count) * 100)
                                     : 0;
@@ -135,9 +137,9 @@
                                     <td><span class="badge badge-<%= dev.vendor.toLowerCase() %>"><%= dev.vendor %></span></td>
                                     <td><%= dev.location || 'N/A' %></td>
                                     <td data-field="status">
-                                        <span class="device-status status-<%= deviceStatus %>" title="<%= dev.last_poll_error || '' %>">
+                                        <span class="device-status status-<%= deviceStatus %>" title="<%= dev.weakest_rx_power !== null && dev.weakest_rx_power !== undefined ? `Weakest RX ${Number(dev.weakest_rx_power).toFixed(2)} dBm` : (dev.last_poll_error || 'Optical data unavailable') %>">
                                             <span class="device-status-dot" aria-hidden="true"></span>
-                                            <%= deviceStatus.charAt(0).toUpperCase() + deviceStatus.slice(1) %>
+                                            <%= deviceStatusLabel %>
                                         </span>
                                     </td>
                                     <td data-field="interfaces">
@@ -147,9 +149,9 @@
                                         </div>
                                     </td>
                                     <td data-field="alarms">
-                                        <span class="alarm-count <%= dev.alarm_count > 0 ? 'has-alarm' : '' %>">
+                                        <span class="alarm-count <%= dev.optical_warning_count > 0 ? 'has-alarm' : '' %>">
                                             <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
-                                            <%= dev.alarm_count || 0 %>
+                                            <%= dev.optical_warning_count || 0 %>
                                         </span>
                                     </td>
                                     <td data-field="lastPoll">

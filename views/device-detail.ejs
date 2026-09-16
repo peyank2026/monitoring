@@ -1,6 +1,15 @@
 <%- include('partials/header', { title: typeof device !== 'undefined' ? device.name : 'Device Detail', activePage: 'devices' }) %>
 
 <% if (typeof device !== 'undefined') { %>
+<%
+    const opticalLabels = {
+        excellent: 'Excellent',
+        good: 'Good',
+        warning: 'Warning',
+        'no-data': 'No Data',
+        disabled: 'Disabled'
+    };
+%>
 <div class="row mb-4">
     <div class="col-md-12">
         <div class="card shadow-sm border-0">
@@ -15,16 +24,11 @@
                 </div>
                 <div class="text-end mt-3 mt-md-0">
                     <span class="d-inline-block me-3">
-                        Status: 
-                        <% if (!device.is_active) { %>
-                            <span class="badge bg-secondary">Disabled</span>
-                        <% } else if (device.last_poll_success === 1) { %>
-                            <span class="badge bg-success">Online</span>
-                        <% } else if (device.last_poll_success === 0) { %>
-                            <span class="badge bg-danger" title="<%= device.last_poll_error || 'Polling failed' %>">Offline</span>
-                        <% } else { %>
-                            <span class="badge bg-warning text-dark">Pending</span>
-                        <% } %>
+                        Optical:
+                        <span class="device-status status-<%= device.optical_status %>" title="<%= device.last_poll_error || '' %>">
+                            <span class="device-status-dot" aria-hidden="true"></span>
+                            <%= opticalLabels[device.optical_status] %>
+                        </span>
                     </span>
                     <button class="btn btn-primary" id="manualPollBtn" onclick="pollDevice('<%= device.id || device._id %>')">
                         <i class="fas fa-sync"></i> Manual Poll
@@ -106,13 +110,15 @@
                             const txNum = (iface.tx_power !== null && iface.tx_power !== undefined && iface.tx_power !== '') ? parseFloat(iface.tx_power) : null;
 
                             let rxClass = '';
+                            let rxQuality = null;
                             if (rxNum !== null && !isNaN(rxNum)) {
-                                if (rxNum >= -20) rxClass = 'power-good';
-                                else if (rxNum >= -25) rxClass = 'power-warning';
-                                else rxClass = 'power-critical table-danger';
+                                if (rxNum >= -15) rxQuality = 'excellent';
+                                else if (rxNum >= -20) rxQuality = 'good';
+                                else rxQuality = 'warning';
+                                rxClass = `power-${rxQuality}`;
                             }
                         %>
-                            <tr class="<%= rxClass === 'power-critical table-danger' ? 'table-danger' : '' %>">
+                            <tr class="<%= rxQuality === 'warning' ? 'table-warning' : '' %>">
                                 <td><%= iface.if_index %></td>
                                 <td>
                                     <strong><%= iface.if_name %></strong>
@@ -126,8 +132,11 @@
                                 </td>
                                 <td><span class="speed-val" data-speed="<%= iface.if_speed %>"><%= iface.if_speed %></span></td>
                                 <td><%= (txNum !== null && !isNaN(txNum)) ? txNum.toFixed(3) : 'N/A' %></td>
-                                <td class="fw-bold <%= rxClass.replace('table-danger', '') %>">
+                                <td class="fw-bold <%= rxClass %>">
                                     <%= (rxNum !== null && !isNaN(rxNum)) ? rxNum.toFixed(3) : 'N/A' %>
+                                    <% if (rxQuality) { %>
+                                        <span class="optical-grade status-<%= rxQuality %>"><%= opticalLabels[rxQuality] %></span>
+                                    <% } %>
                                 </td>
                                 <td><span class="traffic-val" data-bps="<%= iface.in_traffic_bps || 0 %>">0</span></td>
                                 <td><span class="traffic-val" data-bps="<%= iface.out_traffic_bps || 0 %>">0</span></td>

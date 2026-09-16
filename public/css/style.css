@@ -122,6 +122,7 @@ body {
 .stat-card.green { border-color: var(--success); }
 .stat-card.red { border-color: var(--danger); }
 .stat-card.orange { border-color: var(--warning); }
+.stat-card.cyan { border-color: #35a7c6; }
 
 .stat-number {
     font-size: 2rem;
@@ -303,6 +304,7 @@ body {
 
 .stat-visual.success { color: #079778; background: #e8faf5; }
 .stat-visual.danger { color: #db5f4a; background: #fff0ed; }
+.stat-visual.good { color: #167f9f; background: #e8f8fc; }
 .stat-visual.warning { color: #c58a0a; background: #fff8e5; }
 .switch-stat-visual { width: 88px; background: linear-gradient(135deg, #edf4fb, #f8fbff); }
 
@@ -466,10 +468,11 @@ body {
     background: currentColor;
 }
 
-.status-online { color: #098466; background: #e8faf4; }
-.status-online .device-status-dot { animation: statusPulse 2s infinite; }
-.status-offline { color: #d55445; background: #fff0ed; }
-.status-pending { color: #b27600; background: #fff7de; }
+.status-excellent { color: #087f62; background: #e5faf3; }
+.status-excellent .device-status-dot { animation: statusPulse 2s infinite; }
+.status-good { color: #167f9f; background: #e7f7fb; }
+.status-warning { color: #b56e00; background: #fff3d6; }
+.status-no-data { color: #7a8497; background: #edf0f4; }
 .status-disabled { color: #718096; background: #edf0f4; }
 
 .interface-summary {
@@ -562,9 +565,19 @@ body {
 .badge-juniper { background-color: #84bd00; color: white; }
 
 /* Status & Optical Power */
-.power-good { color: var(--success); }
-.power-warning { color: var(--warning); }
-.power-critical { color: var(--danger); font-weight: bold; }
+.power-excellent { color: #087f62; }
+.power-good { color: #167f9f; }
+.power-warning { color: #b56e00; font-weight: bold; }
+
+.optical-grade {
+    display: inline-block;
+    margin-left: 0.35rem;
+    padding: 0.2rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.62rem;
+    line-height: 1;
+    vertical-align: middle;
+}
 
 .status-dot {
     width: 10px;

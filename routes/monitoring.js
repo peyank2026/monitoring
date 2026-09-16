@@ -14,29 +14,53 @@ async function getDashboardData(conn) {
       SELECT
         COUNT(*) as total_interfaces,
         SUM(CASE WHEN if_status = 'up' THEN 1 ELSE 0 END) as up_count,
-        SUM(CASE WHEN rx_power IS NOT NULL AND rx_power < -25 THEN 1 ELSE 0 END) as alarm_count,
+        SUM(CASE WHEN rx_power IS NOT NULL AND rx_power >= -15 THEN 1 ELSE 0 END) as optical_excellent_count,
+        SUM(CASE WHEN rx_power IS NOT NULL AND rx_power < -15 AND rx_power >= -20 THEN 1 ELSE 0 END) as optical_good_count,
+        SUM(CASE WHEN rx_power IS NOT NULL AND rx_power < -20 THEN 1 ELSE 0 END) as optical_warning_count,
+        MIN(rx_power) as weakest_rx_power,
         MAX(polled_at) as last_polled
       FROM interface_data
       WHERE device_id = ?
         AND polled_at = (SELECT MAX(polled_at) FROM interface_data WHERE device_id = ?)
     `, [device.id, device.id]);
 
+    const opticalExcellentCount = Number(ifStats[0]?.optical_excellent_count || 0);
+    const opticalGoodCount = Number(ifStats[0]?.optical_good_count || 0);
+    const opticalWarningCount = Number(ifStats[0]?.optical_warning_count || 0);
+    let opticalStatus = 'no-data';
+
+    if (!device.is_active) {
+      opticalStatus = 'disabled';
+    } else if (device.last_poll_success === 1) {
+      if (opticalWarningCount > 0) opticalStatus = 'warning';
+      else if (opticalGoodCount > 0) opticalStatus = 'good';
+      else if (opticalExcellentCount > 0) opticalStatus = 'excellent';
+    }
+
     deviceSummaries.push({
       ...device,
       interface_count: Number(ifStats[0]?.total_interfaces || 0),
       up_count: Number(ifStats[0]?.up_count || 0),
-      alarm_count: Number(ifStats[0]?.alarm_count || 0),
+      optical_excellent_count: opticalExcellentCount,
+      optical_good_count: opticalGoodCount,
+      optical_warning_count: opticalWarningCount,
+      weakest_rx_power: ifStats[0]?.weakest_rx_power,
+      optical_status: opticalStatus,
       last_polled: ifStats[0]?.last_polled || device.last_poll_at || null
     });
   }
+
+  const currentOpticalData = deviceSummaries.filter(device =>
+    device.is_active && device.last_poll_success === 1
+  );
 
   return {
     devices: deviceSummaries,
     totalDevices: devices.length,
     activeDevices: devices.filter(device => device.is_active).length,
-    onlineDevices: devices.filter(device => device.is_active && device.last_poll_success === 1).length,
-    offlineDevices: devices.filter(device => device.is_active && device.last_poll_success === 0).length,
-    totalAlarms: deviceSummaries.reduce((sum, device) => sum + device.alarm_count, 0)
+    excellentOptics: currentOpticalData.reduce((sum, device) => sum + device.optical_excellent_count, 0),
+    goodOptics: currentOpticalData.reduce((sum, device) => sum + device.optical_good_count, 0),
+    warningOptics: currentOpticalData.reduce((sum, device) => sum + device.optical_warning_count, 0)
   };
 }
 
@@ -62,9 +86,9 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
       devices: [],
       totalDevices: 0,
       activeDevices: 0,
-      onlineDevices: 0,
-      offlineDevices: 0,
-      totalAlarms: 0
+      excellentOptics: 0,
+      goodOptics: 0,
+      warningOptics: 0
     });
   } finally {
     if (conn) conn.release();
@@ -120,6 +144,21 @@ router.get('/device/:id', isAuthenticated, async (req, res) => {
     `, [id, id]);
 
     device.last_polled = device.last_poll_at || interfaces[0]?.polled_at || null;
+    const rxValues = interfaces
+      .map(iface => Number(iface.rx_power))
+      .filter(value => Number.isFinite(value));
+
+    if (!device.is_active) {
+      device.optical_status = 'disabled';
+    } else if (device.last_poll_success !== 1 || rxValues.length === 0) {
+      device.optical_status = 'no-data';
+    } else if (rxValues.some(value => value < -20)) {
+      device.optical_status = 'warning';
+    } else if (rxValues.some(value => value < -15)) {
+      device.optical_status = 'good';
+    } else {
+      device.optical_status = 'excellent';
+    }
 
     res.render('device-detail', {
       title: device.name,
