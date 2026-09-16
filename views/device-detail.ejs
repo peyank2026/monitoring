@@ -52,14 +52,14 @@
                     <div>
                         <div class="traffic-chart-eyebrow"><i class="fas fa-wave-square me-2"></i>MRTG traffic view</div>
                         <h5 class="traffic-chart-title" id="trafficChartTitle">Traffic History</h5>
-                        <div class="traffic-chart-meta" id="trafficChartMeta">24 Jam · waktu WIB</div>
+                        <div class="traffic-chart-meta" id="trafficChartMeta">Rentang tanggal · waktu WIB</div>
                     </div>
                     <div class="traffic-chart-actions">
                         <label for="trafficRange" class="small text-muted text-nowrap mb-0">Rentang:</label>
                         <select id="trafficRange" class="form-select form-select-sm" onchange="changeTrafficRange()">
                             <option value="6h">6 Jam</option>
                             <option value="12h">12 Jam</option>
-                            <option value="24h" selected>24 Jam</option>
+                            <option value="24h">24 Jam</option>
                             <option value="1w">1 Minggu</option>
                             <option value="2w">2 Minggu</option>
                             <option value="1mo">1 Bulan</option>
@@ -68,12 +68,12 @@
                             <option value="6mo">6 Bulan</option>
                             <option value="1y">1 Tahun</option>
                             <option value="2y">2 Tahun</option>
-                            <option value="custom">Pilih tanggal &amp; jam</option>
+                            <option value="custom" selected>Pilih tanggal &amp; jam</option>
                         </select>
                         <button class="btn-close" onclick="hideCharts()" aria-label="Close chart"></button>
                     </div>
                 </div>
-                <div class="chart-custom-range d-none" id="trafficCustomRange">
+                <div class="chart-custom-range" id="trafficCustomRange">
                     <label for="trafficStartAt">Dari</label>
                     <input type="datetime-local" class="form-control form-control-sm" id="trafficStartAt" step="60">
                     <label for="trafficEndAt">Sampai</label>

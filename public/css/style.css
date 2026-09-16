@@ -693,7 +693,7 @@ body {
     position: relative;
     height: 390px;
     padding: 1rem 1.1rem 0.4rem;
-    background: #fffefe;
+    background: #fcfefd;
 }
 
 .traffic-chart-empty {
@@ -742,8 +742,8 @@ body {
 }
 
 .traffic-stats-row + .traffic-stats-row { border-top: 1px solid #e5e7eb; }
-.traffic-in-row { background: rgba(236, 252, 203, 0.48); }
-.traffic-out-row { background: rgba(238, 242, 255, 0.62); }
+.traffic-in-row { background: rgba(226, 244, 221, 0.52); }
+.traffic-out-row { background: rgba(225, 239, 249, 0.6); }
 
 .traffic-series-label {
     display: inline-flex;
@@ -759,8 +759,8 @@ body {
     border-radius: 2px;
 }
 
-.traffic-swatch-in { background: #84cc16; }
-.traffic-swatch-out { background: #4f46e5; }
+.traffic-swatch-in { background: #71b25c; }
+.traffic-swatch-out { background: #659bc5; }
 
 .traffic-volume-row {
     display: flex;

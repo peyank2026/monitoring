@@ -3,6 +3,9 @@ let opticalChartInstance = null;
 let currentTrafficSelection = null;
 
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+const DAY_MS = 24 * HOUR_MS;
 
 const TRAFFIC_RANGE_LABELS = {
     '6h': '6 Jam',
@@ -28,15 +31,28 @@ function formatBps(bps) {
     return bps.toFixed(0) + ' bps';
 }
 
-function formatAxisBps(value) {
-    const numericValue = Number(value) || 0;
-    const sign = numericValue < 0 ? '-' : '';
-    const absoluteValue = Math.abs(numericValue);
+function getTrafficYScale(inMax, outMax) {
+    const peak = Math.max(inMax, outMax, 1);
+    const upper = Math.max(inMax * 1.18, peak * 0.1, 1);
+    const lower = Math.max(outMax * 1.18, peak * 0.1, 1);
+    const targetStep = (upper + lower) / 26;
+    const magnitude = 10 ** Math.floor(Math.log10(targetStep));
+    const step = Math.max(1, [1, 2, 2.5, 5, 10]
+        .map(factor => factor * magnitude)
+        .find(candidate => candidate >= targetStep));
+    const max = Math.ceil(upper / step) * step;
+    const min = -Math.ceil(lower / step) * step;
+    const limit = Math.max(max, -min);
+    const [unit, suffix] = limit >= 1e9 ? [1e9, 'G']
+        : limit >= 1e6 ? [1e6, 'M']
+        : limit >= 1e3 ? [1e3, 'K'] : [1, ''];
+    const decimals = (step / unit).toFixed(3).replace(/0+$/, '').split('.')[1]?.length || 0;
 
-    if (absoluteValue >= 1000000000) return `${sign}${(absoluteValue / 1000000000).toFixed(1)}G`;
-    if (absoluteValue >= 1000000) return `${sign}${(absoluteValue / 1000000).toFixed(0)}M`;
-    if (absoluteValue >= 1000) return `${sign}${(absoluteValue / 1000).toFixed(0)}K`;
-    return `${sign}${absoluteValue.toFixed(0)}`;
+    return { min, max, step, unit, suffix, decimals };
+}
+
+function formatAxisBps(value, scale) {
+    return `${((Number(value) || 0) / scale.unit).toFixed(scale.decimals)}${scale.suffix ? ` ${scale.suffix}` : ''}`;
 }
 
 function formatBytes(bytes) {
@@ -75,15 +91,6 @@ function estimateTransferredBytes(values, points) {
     }, 0);
 
     return totalBits / 8;
-}
-
-function niceTrafficLimit(value) {
-    if (!Number.isFinite(value) || value <= 0) return 1000000;
-    const exponent = Math.floor(Math.log10(value));
-    const magnitude = 10 ** exponent;
-    const normalized = value / magnitude;
-    const niceNormalized = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
-    return niceNormalized * magnitude;
 }
 
 function formatSpeed(speed) {
@@ -148,6 +155,7 @@ function hideCharts() {
 async function showCharts(deviceId, ifIndex, ifName) {
     currentTrafficSelection = { deviceId, ifIndex, ifName };
     document.getElementById('chartSection').classList.remove('d-none');
+    setTrafficCustomDefaults();
     
     // Scroll to chart section smoothly
     document.getElementById('chartSection').scrollIntoView({ behavior: 'smooth' });
@@ -157,8 +165,7 @@ async function showCharts(deviceId, ifIndex, ifName) {
 
 async function changeTrafficRange() {
     if (!currentTrafficSelection) return;
-    const range = document.getElementById('trafficRange')?.value || '24h';
-    toggleTrafficCustomRange(range === 'custom');
+    const range = document.getElementById('trafficRange')?.value || 'custom';
     if (range === 'custom') return;
 
     const { deviceId, ifIndex, ifName } = currentTrafficSelection;
@@ -176,24 +183,40 @@ function setTrafficCustomDefaults() {
 
     const end = new Date();
     end.setSeconds(0, 0);
-    const start = new Date(end.getTime() - (24 * 60 * 60 * 1000));
-    startInput.value = formatWibDateTimeInput(start);
-    endInput.value = formatWibDateTimeInput(end);
-}
-
-function toggleTrafficCustomRange(show) {
-    const customRange = document.getElementById('trafficCustomRange');
-    if (!customRange) return;
-    customRange.classList.toggle('d-none', !show);
-    if (show) setTrafficCustomDefaults();
-    updateTrafficStat('trafficRangeError', '');
+    const yesterday = new Date(end.getTime() - (24 * 60 * 60 * 1000));
+    if (!startInput.value) {
+        startInput.value = `${formatWibDateTimeInput(yesterday).slice(0, 10)}T07:00`;
+    }
+    if (!endInput.value) endInput.value = formatWibDateTimeInput(end);
 }
 
 function getTrafficRangeRequest(range) {
     if (range !== 'custom') {
+        const endMs = Date.now();
+        const startDate = new Date(endMs);
+        const fixedDurations = {
+            '6h': 6 * HOUR_MS, '12h': 12 * HOUR_MS, '24h': DAY_MS,
+            '1w': 7 * DAY_MS, '2w': 14 * DAY_MS
+        };
+        const calendarMonths = {
+            '1mo': 1, '2mo': 2, '3mo': 3, '6mo': 6, '1y': 12, '2y': 24
+        };
+        if (fixedDurations[range] || !calendarMonths[range]) {
+            startDate.setTime(endMs - (fixedDurations[range] || DAY_MS));
+        } else {
+            const day = startDate.getUTCDate();
+            startDate.setUTCDate(1);
+            startDate.setUTCMonth(startDate.getUTCMonth() - calendarMonths[range]);
+            const lastDay = new Date(Date.UTC(
+                startDate.getUTCFullYear(), startDate.getUTCMonth() + 1, 0
+            )).getUTCDate();
+            startDate.setUTCDate(Math.min(day, lastDay));
+        }
         return {
             query: `range=${encodeURIComponent(range)}`,
-            label: TRAFFIC_RANGE_LABELS[range] || TRAFFIC_RANGE_LABELS['24h']
+            label: TRAFFIC_RANGE_LABELS[range] || TRAFFIC_RANGE_LABELS['24h'],
+            startMs: startDate.getTime(),
+            endMs
         };
     }
 
@@ -217,7 +240,9 @@ function getTrafficRangeRequest(range) {
     const endLabel = new Date(`${end}:00+07:00`).toLocaleString('id-ID', labelOptions);
     return {
         query: `start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}`,
-        label: `${startLabel} – ${endLabel}`
+        label: `${startLabel} – ${endLabel}`,
+        startMs: new Date(`${start}:00+07:00`).getTime(),
+        endMs: new Date(`${end}:00+07:00`).getTime()
     };
 }
 
@@ -225,31 +250,39 @@ async function applyTrafficCustomRange() {
     if (!currentTrafficSelection) return;
     const rangeRequest = getTrafficRangeRequest('custom');
     if (!rangeRequest) return;
+    const rangeSelect = document.getElementById('trafficRange');
+    if (rangeSelect) rangeSelect.value = 'custom';
     const { deviceId, ifIndex, ifName } = currentTrafficSelection;
     await loadTrafficChart(deviceId, ifIndex, ifName);
 }
 
-function formatTrafficTimestamp(value, range) {
-    const date = new Date(value);
-    if (['6h', '12h', '24h'].includes(range)) {
-        return date.toLocaleTimeString('id-ID', {
-            hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta'
-        });
+function getTrafficTimeGrid(durationMs) {
+    if (durationMs <= 2 * DAY_MS) return { minorMs: 10 * MINUTE_MS, majorMs: HOUR_MS };
+    if (durationMs <= 14 * DAY_MS) return { minorMs: HOUR_MS, majorMs: 6 * HOUR_MS };
+    if (durationMs <= 90 * DAY_MS) return { minorMs: 6 * HOUR_MS, majorMs: DAY_MS };
+    if (durationMs <= 365 * DAY_MS) return { minorMs: DAY_MS, majorMs: 7 * DAY_MS };
+    return { minorMs: 7 * DAY_MS, majorMs: 28 * DAY_MS };
+}
+
+function formatTrafficAxisTick(timestamp, durationMs, startMs) {
+    const wibTime = new Date(timestamp + WIB_OFFSET_MS).toISOString().slice(11, 16);
+    if (durationMs <= 2 * DAY_MS) {
+        if (timestamp === startMs || wibTime === '00:00') {
+            const dateLabel = new Date(timestamp).toLocaleDateString('id-ID', {
+                day: '2-digit', month: 'short', timeZone: 'Asia/Jakarta'
+            });
+            return [wibTime, dateLabel];
+        }
+        return wibTime;
     }
-    if (['1w', '2w'].includes(range)) {
-        return date.toLocaleString('id-ID', {
-            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-            timeZone: 'Asia/Jakarta'
-        });
+    if (durationMs <= 14 * DAY_MS) {
+        return new Date(timestamp).toLocaleDateString('id-ID', {
+            day: '2-digit', month: 'short', timeZone: 'Asia/Jakarta'
+        }) + ` ${wibTime}`;
     }
-    if (range === 'custom') {
-        return date.toLocaleString('id-ID', {
-            day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-            timeZone: 'Asia/Jakarta'
-        });
-    }
-    return date.toLocaleDateString('id-ID', {
-        day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta'
+    return new Date(timestamp).toLocaleDateString('id-ID', {
+        day: '2-digit', month: 'short', year: durationMs > 365 * DAY_MS ? 'numeric' : undefined,
+        timeZone: 'Asia/Jakarta'
     });
 }
 
@@ -272,36 +305,33 @@ const trafficChartAreaPlugin = {
         const { ctx, chartArea } = chart;
         if (!chartArea) return;
         ctx.save();
-        ctx.fillStyle = '#fffefe';
+        ctx.fillStyle = '#fcfefd';
         ctx.fillRect(chartArea.left, chartArea.top, chartArea.width, chartArea.height);
         ctx.restore();
     },
     beforeDatasetsDraw(chart) {
-        const { ctx, chartArea } = chart;
-        if (!chartArea) return;
+        const { ctx, chartArea, scales } = chart;
+        if (!chartArea || !scales.x) return;
 
-        const gridSize = chart.width < 620 ? 12 : 14;
+        const xScale = scales.x;
+        const { minorMs, majorMs } = getTrafficTimeGrid(xScale.max - xScale.min);
         ctx.save();
         ctx.beginPath();
         ctx.rect(chartArea.left, chartArea.top, chartArea.width, chartArea.height);
         ctx.clip();
-        ctx.strokeStyle = 'rgba(239, 68, 68, 0.13)';
-        ctx.lineWidth = 0.55;
-        ctx.setLineDash([1, 2]);
+        ctx.strokeStyle = 'rgba(105, 128, 143, 0.11)';
+        ctx.lineWidth = 0.6;
+        ctx.setLineDash([2, 3]);
 
-        for (let x = chartArea.left + gridSize; x < chartArea.right; x += gridSize) {
-            const alignedX = Math.round(x) + 0.5;
+        for (let timestamp = Math.ceil(xScale.min / minorMs) * minorMs;
+            timestamp <= xScale.max; timestamp += minorMs) {
+            const alignedX = Math.round(xScale.getPixelForValue(timestamp)) + 0.5;
+            const isMajor = timestamp % majorMs === 0;
+            ctx.strokeStyle = isMajor ? 'rgba(105, 128, 143, 0.23)' : 'rgba(105, 128, 143, 0.11)';
+            ctx.lineWidth = isMajor ? 0.9 : 0.6;
             ctx.beginPath();
             ctx.moveTo(alignedX, chartArea.top);
             ctx.lineTo(alignedX, chartArea.bottom);
-            ctx.stroke();
-        }
-
-        for (let y = chartArea.top + gridSize; y < chartArea.bottom; y += gridSize) {
-            const alignedY = Math.round(y) + 0.5;
-            ctx.beginPath();
-            ctx.moveTo(chartArea.left, alignedY);
-            ctx.lineTo(chartArea.right, alignedY);
             ctx.stroke();
         }
 
@@ -315,8 +345,8 @@ const trafficChartAreaPlugin = {
         ctx.beginPath();
         ctx.moveTo(chartArea.left, zeroY);
         ctx.lineTo(chartArea.right, zeroY);
-        ctx.lineWidth = 1.5;
-        ctx.strokeStyle = 'rgba(185, 28, 28, 0.72)';
+        ctx.lineWidth = 1.2;
+        ctx.strokeStyle = 'rgba(89, 109, 123, 0.62)';
         ctx.stroke();
         ctx.restore();
     }
@@ -324,7 +354,7 @@ const trafficChartAreaPlugin = {
 
 async function loadTrafficChart(deviceId, ifIndex, ifName) {
     const rangeSelect = document.getElementById('trafficRange');
-    const range = rangeSelect?.value || '24h';
+    const range = rangeSelect?.value || 'custom';
     const rangeRequest = getTrafficRangeRequest(range);
     if (!rangeRequest) return;
     const title = document.getElementById('trafficChartTitle');
@@ -356,10 +386,13 @@ async function loadTrafficChart(deviceId, ifIndex, ifName) {
         
         if (!Array.isArray(data)) data = [];
 
-        const labels = data.map(d => formatTrafficTimestamp(d.polled_at, range));
+        const timestamps = data.map(d => new Date(d.polled_at).getTime());
         const inData = data.map(d => parseFloat(d.in_traffic_bps) || 0);
         const outData = data.map(d => parseFloat(d.out_traffic_bps) || 0);
-        const plottedOutData = outData.map(value => -value);
+        const plottedInData = inData.map((value, index) => ({ x: timestamps[index], y: value }));
+        const plottedOutData = outData.map((value, index) => ({ x: timestamps[index], y: -value }));
+        const durationMs = rangeRequest.endMs - rangeRequest.startMs;
+        const { majorMs } = getTrafficTimeGrid(durationMs);
 
         // Update MRTG Statistics Summary, including ranges with no data.
         const inCurr = inData[inData.length - 1] || 0;
@@ -401,21 +434,21 @@ async function loadTrafficChart(deviceId, ifIndex, ifName) {
             chartEmpty.textContent = data.length ? '' : 'Belum ada histori trafik pada rentang ini.';
         }
 
-        const trafficLimit = niceTrafficLimit(Math.max(inMax, outMax) * 1.08);
+        const yScale = getTrafficYScale(inMax, outMax);
 
-        // MRTG/RRD-style chart: incoming above zero, outgoing below zero.
+        // Keep In above zero and Out below zero, but size each side to its own traffic.
         trafficChartInstance = new Chart(ctx, {
             type: 'line',
             data: {
-                labels: labels,
                 datasets: [
                     {
                         label: 'Incoming Traffic (In)',
-                        data: inData,
-                        borderColor: '#4d7c0f',
-                        backgroundColor: 'rgba(132, 204, 22, 0.72)',
-                        borderWidth: 1.25,
-                        tension: 0.06,
+                        data: plottedInData,
+                        borderColor: '#4c8a3f',
+                        backgroundColor: 'rgba(113, 178, 92, 0.55)',
+                        borderWidth: 1.6,
+                        cubicInterpolationMode: 'monotone',
+                        tension: 0.18,
                         fill: 'origin',
                         pointRadius: 0,
                         pointHoverRadius: 4,
@@ -424,10 +457,11 @@ async function loadTrafficChart(deviceId, ifIndex, ifName) {
                     {
                         label: 'Outgoing Traffic (Out)',
                         data: plottedOutData,
-                        borderColor: '#3f3f92',
-                        backgroundColor: 'rgba(79, 70, 229, 0.58)',
-                        borderWidth: 1.25,
-                        tension: 0.06,
+                        borderColor: '#447eac',
+                        backgroundColor: 'rgba(101, 155, 197, 0.47)',
+                        borderWidth: 1.6,
+                        cubicInterpolationMode: 'monotone',
+                        tension: 0.18,
                         fill: 'origin',
                         pointRadius: 0,
                         pointHoverRadius: 4,
@@ -446,44 +480,49 @@ async function loadTrafficChart(deviceId, ifIndex, ifName) {
                 },
                 scales: {
                     x: {
+                        type: 'linear',
+                        min: rangeRequest.startMs,
+                        max: rangeRequest.endMs,
                         grid: {
-                            color: 'rgba(239, 68, 68, 0.20)',
-                            lineWidth: 0.8,
-                            borderDash: [2, 3],
+                            display: false,
                             tickLength: 5
                         },
                         ticks: {
-                            maxTicksLimit: 14,
-                            color: '#4b5563',
+                            stepSize: majorMs,
+                            maxTicksLimit: durationMs <= 2 * DAY_MS ? 30 : 16,
+                            color: '#536574',
                             maxRotation: 0,
-                            autoSkipPadding: 16,
+                            autoSkipPadding: 4,
+                            callback: value => formatTrafficAxisTick(value, durationMs, rangeRequest.startMs),
                             font: { family: 'ui-monospace, SFMono-Regular, Menlo, monospace', size: 10 }
                         },
-                        border: { color: '#9ca3af' }
+                        border: { color: '#a6b5bd' }
                     },
                     y: {
-                        min: -trafficLimit,
-                        max: trafficLimit,
+                        min: yScale.min,
+                        max: yScale.max,
                         grid: {
                             color: context => context.tick.value === 0
-                                ? 'rgba(185, 28, 28, 0.58)'
-                                : 'rgba(239, 68, 68, 0.20)',
-                            lineWidth: context => context.tick.value === 0 ? 1.2 : 0.8,
-                            borderDash: context => context.tick.value === 0 ? [] : [2, 3]
+                                ? 'rgba(89, 109, 123, 0.48)'
+                                : 'rgba(105, 128, 143, 0.17)',
+                            lineWidth: context => context.tick.value === 0 ? 1.1 : 0.7,
+                            borderDash: context => context.tick.value === 0 ? [] : [3, 3]
                         },
                         ticks: {
-                            color: '#374151',
-                            maxTicksLimit: 13,
-                            callback: value => formatAxisBps(value),
+                            color: '#536574',
+                            stepSize: yScale.step,
+                            maxTicksLimit: 30,
+                            padding: 2,
+                            callback: value => formatAxisBps(value, yScale),
                             font: { family: 'ui-monospace, SFMono-Regular, Menlo, monospace', size: 10 }
                         },
                         title: {
                             display: true,
                             text: 'bits per second',
-                            color: '#6b7280',
+                            color: '#667788',
                             font: { size: 11, weight: '600' }
                         },
-                        border: { color: '#9ca3af' }
+                        border: { color: '#a6b5bd' }
                     }
                 },
                 plugins: {
@@ -500,7 +539,7 @@ async function loadTrafficChart(deviceId, ifIndex, ifName) {
                                 return point ? formatTrafficTimestampFull(point.polled_at) : '';
                             },
                             label(context) {
-                                return `${context.dataset.label}: ${formatBps(Math.abs(context.raw))}`;
+                                return `${context.dataset.label}: ${formatBps(Math.abs(context.parsed.y))}`;
                             }
                         }
                     }
