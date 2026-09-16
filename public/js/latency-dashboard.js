@@ -107,6 +107,37 @@ const latencyChartAreaPlugin = {
         ctx.fillStyle = '#fffefe';
         ctx.fillRect(chartArea.left, chartArea.top, chartArea.width, chartArea.height);
         ctx.restore();
+    },
+    beforeDatasetsDraw(chart) {
+        const { ctx, chartArea } = chart;
+        if (!chartArea) return;
+
+        const gridSize = chart.width < 620 ? 12 : 14;
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(chartArea.left, chartArea.top, chartArea.width, chartArea.height);
+        ctx.clip();
+        ctx.strokeStyle = 'rgba(239, 68, 68, 0.13)';
+        ctx.lineWidth = 0.55;
+        ctx.setLineDash([1, 2]);
+
+        for (let x = chartArea.left + gridSize; x < chartArea.right; x += gridSize) {
+            const alignedX = Math.round(x) + 0.5;
+            ctx.beginPath();
+            ctx.moveTo(alignedX, chartArea.top);
+            ctx.lineTo(alignedX, chartArea.bottom);
+            ctx.stroke();
+        }
+
+        for (let y = chartArea.top + gridSize; y < chartArea.bottom; y += gridSize) {
+            const alignedY = Math.round(y) + 0.5;
+            ctx.beginPath();
+            ctx.moveTo(chartArea.left, alignedY);
+            ctx.lineTo(chartArea.right, alignedY);
+            ctx.stroke();
+        }
+
+        ctx.restore();
     }
 };
 
