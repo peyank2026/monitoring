@@ -28,7 +28,12 @@
                         <% devices.forEach((dev, index) => { %>
                             <tr>
                                 <td><%= index + 1 %></td>
-                                <td><%= dev.name %></td>
+                                <td>
+                                    <% if (dev.vendor === 'mikrotik' || dev.vendor === 'huawei') { %>
+                                        <img class="vendor-list-logo" src="/images/<%= dev.vendor %>-symbol.svg" alt="<%= dev.vendor === 'mikrotik' ? 'MikroTik' : 'Huawei' %> logo">
+                                    <% } %>
+                                    <%= dev.name %>
+                                </td>
                                 <td><%= dev.ip_address %></td>
                                 <td>
                                     <span class="badge badge-<%= dev.vendor.toLowerCase() %>"><%= dev.vendor %></span>

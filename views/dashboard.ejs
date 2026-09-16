@@ -126,10 +126,15 @@
                                     data-search="<%= `${dev.name} ${dev.ip_address} ${dev.vendor} ${dev.location || ''}`.toLowerCase() %>">
                                     <td>
                                         <div class="device-identity">
-                                            <div class="device-thumbnail"><img src="/images/network-switch.png" alt=""></div>
+                                            <div class="device-thumbnail">
+                                                <% if (dev.vendor === 'mikrotik' || dev.vendor === 'huawei') { %>
+                                                    <img class="vendor-symbol" src="/images/<%= dev.vendor %>-symbol.svg" alt="<%= dev.vendor === 'mikrotik' ? 'MikroTik' : 'Huawei' %> logo">
+                                                <% } else { %>
+                                                    <img src="/images/network-switch.png" alt="">
+                                                <% } %>
+                                            </div>
                                             <div>
                                                 <strong><%= dev.name %></strong>
-                                                <small>Managed switch</small>
                                             </div>
                                         </div>
                                     </td>

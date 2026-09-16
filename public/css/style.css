@@ -442,6 +442,26 @@ body {
 }
 
 .device-thumbnail img { width: 62px; filter: drop-shadow(0 4px 4px rgba(15,52,96,0.24)); }
+.device-thumbnail img.vendor-symbol {
+    width: 27px;
+    height: 27px;
+    object-fit: contain;
+    filter: none;
+}
+
+.vendor-list-logo,
+.vendor-heading-logo {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+    vertical-align: middle;
+    margin-right: 0.4rem;
+}
+
+.vendor-heading-logo {
+    width: 30px;
+    height: 30px;
+}
 
 .dashboard-device-table code {
     padding: 0.24rem 0.48rem;
