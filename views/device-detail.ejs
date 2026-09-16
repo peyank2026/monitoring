@@ -42,12 +42,16 @@
 <div class="chart-section d-none mb-4" id="chartSection">
     <div class="row">
         <div class="col-md-12">
-            <div class="chart-container shadow-sm border-0">
-                <div class="d-flex justify-content-between align-items-center mb-3">
-                    <h6 class="m-0 fw-bold" id="trafficChartTitle"><i class="fas fa-chart-area text-success me-2"></i>Traffic History (MRTG Style)</h6>
-                    <div class="d-flex align-items-center gap-2">
+            <div class="chart-container traffic-chart-card shadow-sm border-0">
+                <div class="traffic-chart-header">
+                    <div>
+                        <div class="traffic-chart-eyebrow"><i class="fas fa-wave-square me-2"></i>MRTG traffic view</div>
+                        <h5 class="traffic-chart-title" id="trafficChartTitle">Traffic History</h5>
+                        <div class="traffic-chart-meta" id="trafficChartMeta">24 Jam · waktu WIB</div>
+                    </div>
+                    <div class="traffic-chart-actions">
                         <label for="trafficRange" class="small text-muted text-nowrap mb-0">Rentang:</label>
-                        <select id="trafficRange" class="form-select form-select-sm" onchange="changeTrafficRange()" style="width: 130px;">
+                        <select id="trafficRange" class="form-select form-select-sm" onchange="changeTrafficRange()">
                             <option value="6h">6 Jam</option>
                             <option value="12h">12 Jam</option>
                             <option value="24h" selected>24 Jam</option>
@@ -63,21 +67,31 @@
                         <button class="btn-close" onclick="hideCharts()" aria-label="Close chart"></button>
                     </div>
                 </div>
-                <div style="position: relative; height: 320px;">
+                <div class="traffic-chart-plot">
                     <canvas id="trafficChart"></canvas>
+                    <div class="traffic-chart-empty" id="trafficChartEmpty">Memuat histori trafik…</div>
                 </div>
-                <div class="mt-3 p-3 rounded d-flex justify-content-around flex-wrap font-monospace text-center border" style="background-color: #1a1a2e; color: #ffffff;" id="mrtgStats">
-                    <div>
-                        <span style="color: #00e676;" class="fw-bold">● TRAFFIC IN:</span> 
-                        &nbsp;Curr: <span id="mrtgInCurr" class="fw-bold">0 bps</span> | 
-                        Avg: <span id="mrtgInAvg">0 bps</span> | 
-                        Max: <span id="mrtgInMax" class="text-warning">0 bps</span>
+                <div class="traffic-stats" id="mrtgStats">
+                    <div class="traffic-stats-head" aria-hidden="true">
+                        <span>Traffic</span><span>Now</span><span>Average</span><span>Maximum</span><span>95th %</span>
                     </div>
-                    <div>
-                        <span style="color: #2979ff;" class="fw-bold">● TRAFFIC OUT:</span> 
-                        &nbsp;Curr: <span id="mrtgOutCurr" class="fw-bold">0 bps</span> | 
-                        Avg: <span id="mrtgOutAvg">0 bps</span> | 
-                        Max: <span id="mrtgOutMax" class="text-warning">0 bps</span>
+                    <div class="traffic-stats-row traffic-in-row">
+                        <span class="traffic-series-label"><span class="traffic-swatch traffic-swatch-in"></span>In</span>
+                        <strong id="mrtgInCurr">0 bps</strong>
+                        <span id="mrtgInAvg">0 bps</span>
+                        <span id="mrtgInMax">0 bps</span>
+                        <span id="mrtgIn95">0 bps</span>
+                    </div>
+                    <div class="traffic-stats-row traffic-out-row">
+                        <span class="traffic-series-label"><span class="traffic-swatch traffic-swatch-out"></span>Out</span>
+                        <strong id="mrtgOutCurr">0 bps</strong>
+                        <span id="mrtgOutAvg">0 bps</span>
+                        <span id="mrtgOutMax">0 bps</span>
+                        <span id="mrtgOut95">0 bps</span>
+                    </div>
+                    <div class="traffic-volume-row">
+                        <span>Total estimasi: <strong>In <span id="mrtgTotalIn">0 B</span></strong> · <strong>Out <span id="mrtgTotalOut">0 B</span></strong></span>
+                        <span><span id="mrtgSampleCount">0 titik data</span> · <span id="mrtgUpdatedAt">Belum ada data</span></span>
                     </div>
                 </div>
             </div>
