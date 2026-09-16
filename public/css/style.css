@@ -754,6 +754,173 @@ body {
     font-size: 0.7rem;
 }
 
+.latency-monitor-card {
+    overflow: hidden;
+    padding: 0;
+    border: 1px solid #e5e7eb !important;
+}
+
+.latency-chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.25rem;
+    padding: 1.25rem 1.35rem 1rem;
+    background: linear-gradient(135deg, #ffffff 0%, #f8fafc 100%);
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.latency-chart-eyebrow {
+    margin-bottom: 0.25rem;
+    color: #15803d;
+    font-size: 0.7rem;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.latency-chart-title {
+    margin: 0;
+    color: #172033;
+    font-size: 1.05rem;
+    font-weight: 750;
+}
+
+.latency-chart-meta {
+    margin-top: 0.2rem;
+    color: #6b7280;
+    font-size: 0.78rem;
+}
+
+.latency-chart-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+}
+
+.latency-chart-actions .form-select { width: 122px; }
+
+.latency-chart-plot {
+    position: relative;
+    height: 390px;
+    padding: 1rem 1.1rem 0.3rem;
+    background: #fffefe;
+}
+
+.latency-chart-empty {
+    position: absolute;
+    inset: 1rem;
+    z-index: 2;
+    display: grid;
+    place-items: center;
+    color: #64748b;
+    font-size: 0.88rem;
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.84);
+    backdrop-filter: blur(2px);
+}
+
+.latency-chart-empty.is-error { color: #b91c1c; }
+
+.latency-chart-legend {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.65rem 1.25rem;
+    margin: 0 1.35rem 0.9rem;
+    color: #64748b;
+    font-size: 0.72rem;
+}
+
+.latency-chart-legend span {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.42rem;
+}
+
+.latency-chart-legend i { display: inline-block; flex: 0 0 auto; }
+
+.latency-legend-line {
+    width: 1.35rem;
+    height: 3px;
+    border-radius: 999px;
+    background: #22c55e;
+}
+
+.latency-legend-smoke {
+    width: 1.35rem;
+    height: 0.7rem;
+    border-radius: 2px;
+    background: linear-gradient(180deg, rgba(100,116,139,.2), rgba(51,65,85,.42), rgba(100,116,139,.2));
+}
+
+.latency-legend-loss {
+    width: 0.62rem;
+    height: 0.72rem;
+    border-radius: 2px;
+    background: #dc2626;
+}
+
+.latency-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 1px;
+    margin: 0 1.35rem;
+    overflow: hidden;
+    border: 1px solid #dbe1e8;
+    border-radius: 10px 10px 0 0;
+    background: #dbe1e8;
+}
+
+.latency-stat-grid > div {
+    min-width: 0;
+    padding: 0.7rem 0.78rem;
+    background: #f8fafc;
+}
+
+.latency-stat-grid span {
+    display: block;
+    margin-bottom: 0.18rem;
+    color: #6b7280;
+    font-size: 0.62rem;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+
+.latency-stat-grid strong {
+    display: block;
+    overflow: hidden;
+    color: #1f2937;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.82rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.latency-loss-strip {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.45rem 1rem;
+    margin: 0 1.35rem 1.25rem;
+    padding: 0.62rem 0.8rem;
+    color: #64748b;
+    background: #ffffff;
+    border: 1px solid #dbe1e8;
+    border-top: 0;
+    border-radius: 0 0 10px 10px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    font-size: 0.7rem;
+}
+
+.latency-loss-label {
+    color: #b91c1c;
+    font-weight: 800;
+}
+
+.latency-update-meta { margin-left: auto; }
+
 /* Animations */
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
@@ -840,6 +1007,19 @@ body {
         flex-direction: column;
         min-width: 620px;
     }
+
+    .latency-chart-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .latency-chart-actions { width: 100%; }
+    .latency-chart-actions .form-select { width: 100%; }
+    .latency-chart-plot { height: 330px; padding-inline: 0.35rem; }
+    .latency-chart-legend { margin-inline: 0.75rem; }
+    .latency-stat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-inline: 0.75rem; }
+    .latency-loss-strip { align-items: flex-start; flex-direction: column; margin-inline: 0.75rem; }
+    .latency-update-meta { margin-left: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

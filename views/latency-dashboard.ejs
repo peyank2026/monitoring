@@ -61,14 +61,16 @@
 </div>
 
 <div class="chart-section d-none mb-4" id="latencyChartSection">
-    <div class="chart-container shadow-sm border-0">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h6 class="m-0 fw-bold" id="latencyChartTitle">
-                <i class="fas fa-chart-area text-success me-2"></i>Latency History
-            </h6>
-            <div class="d-flex align-items-center gap-2">
+    <div class="chart-container latency-monitor-card shadow-sm border-0">
+        <div class="latency-chart-header">
+            <div>
+                <div class="latency-chart-eyebrow"><i class="fas fa-signal me-2"></i>SmokePing latency view</div>
+                <h5 class="latency-chart-title" id="latencyChartTitle">Latency History</h5>
+                <div class="latency-chart-meta" id="latencyChartMeta">24 Jam · waktu WIB</div>
+            </div>
+            <div class="latency-chart-actions">
                 <label for="latencyRange" class="small text-muted text-nowrap mb-0">Rentang:</label>
-                <select id="latencyRange" class="form-select form-select-sm" onchange="changeLatencyRange()" style="width: 120px;">
+                <select id="latencyRange" class="form-select form-select-sm" onchange="changeLatencyRange()">
                     <option value="6h">6 Jam</option>
                     <option value="24h" selected>24 Jam</option>
                     <option value="7d">7 Hari</option>
@@ -77,11 +79,29 @@
                 <button class="btn-close" onclick="hideLatencyChart()" aria-label="Close chart"></button>
             </div>
         </div>
-        <div style="position: relative; height: 360px;">
+        <div class="latency-chart-plot">
             <canvas id="latencyChart"></canvas>
+            <div class="latency-chart-empty" id="latencyChartEmpty">Memuat histori latency…</div>
         </div>
-        <div class="small text-muted mt-2">
-            Area abu-abu menunjukkan rentang latency minimum–maksimum, garis hijau menunjukkan rata-rata, dan bar merah menunjukkan packet loss.
+        <div class="latency-chart-legend" aria-label="Keterangan chart">
+            <span><i class="latency-legend-line"></i>Rata-rata latency</span>
+            <span><i class="latency-legend-smoke"></i>Rentang minimum–maksimum</span>
+            <span><i class="latency-legend-loss"></i>Packet loss</span>
+        </div>
+        <div class="latency-stat-grid">
+            <div><span>Median RTT</span><strong id="latencyMedian">N/A</strong></div>
+            <div><span>Average</span><strong id="latencyAverage">N/A</strong></div>
+            <div><span>Maximum</span><strong id="latencyMaximum">N/A</strong></div>
+            <div><span>Minimum</span><strong id="latencyMinimum">N/A</strong></div>
+            <div><span>Now</span><strong id="latencyNow">N/A</strong></div>
+            <div><span>Std. deviation</span><strong id="latencyDeviation">N/A</strong></div>
+        </div>
+        <div class="latency-loss-strip">
+            <span class="latency-loss-label">Packet loss</span>
+            <span id="latencyLossAverage">0.00% avg</span>
+            <span id="latencyLossMaximum">0.00% max</span>
+            <span id="latencyLossNow">0.00% now</span>
+            <span class="latency-update-meta"><span id="latencySampleCount">0 titik data</span> · <span id="latencyUpdatedAt">Belum ada data</span></span>
         </div>
     </div>
 </div>
