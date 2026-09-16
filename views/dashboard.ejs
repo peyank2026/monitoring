@@ -1,0 +1,114 @@
+<%- include('partials/header', { title: 'Switch Dashboard', activePage: 'dashboard' }) %>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card blue">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number"><%= typeof totalDevices !== 'undefined' ? totalDevices : 0 %></div>
+                    <div class="stat-label">Total Devices</div>
+                </div>
+                <i class="fas fa-server stat-icon text-primary"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card green">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number"><%= typeof onlineDevices !== 'undefined' ? onlineDevices : 0 %></div>
+                    <div class="stat-label">Online Devices</div>
+                </div>
+                <i class="fas fa-check-circle stat-icon text-success"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card red">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number"><%= typeof offlineDevices !== 'undefined' ? offlineDevices : 0 %></div>
+                    <div class="stat-label">Offline Devices</div>
+                </div>
+                <i class="fas fa-times-circle stat-icon text-danger"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card orange">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number"><%= typeof totalAlarms !== 'undefined' ? totalAlarms : 0 %></div>
+                    <div class="stat-label">Alarm Interfaces</div>
+                </div>
+                <i class="fas fa-exclamation-triangle stat-icon text-warning"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <h5 class="card-title mb-3">Monitored Switches</h5>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Device Name</th>
+                        <th>IP Address</th>
+                        <th>Vendor</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Interfaces (Up/Total)</th>
+                        <th>Alarms</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (typeof devices !== 'undefined' && devices.length > 0) { %>
+                        <% devices.forEach((dev, index) => { %>
+                            <tr>
+                                <td><%= index + 1 %></td>
+                                <td><%= dev.name %></td>
+                                <td><%= dev.ip_address %></td>
+                                <td><span class="badge badge-<%= dev.vendor.toLowerCase() %>"><%= dev.vendor %></span></td>
+                                <td><%= dev.location || 'N/A' %></td>
+                                <td>
+                                    <% if (!dev.is_active) { %>
+                                        <span class="badge bg-secondary">Disabled</span>
+                                    <% } else if (dev.last_poll_success === 1) { %>
+                                        <span class="badge bg-success">Online</span>
+                                    <% } else if (dev.last_poll_success === 0) { %>
+                                        <span class="badge bg-danger" title="<%= dev.last_poll_error || 'Polling failed' %>">Offline</span>
+                                    <% } else { %>
+                                        <span class="badge bg-warning text-dark">Pending</span>
+                                    <% } %>
+                                </td>
+                                <td><%= dev.up_count || 0 %> / <%= dev.interface_count || 0 %></td>
+                                <td>
+                                    <% if (dev.alarm_count > 0) { %>
+                                        <span class="badge bg-warning text-dark"><%= dev.alarm_count %></span>
+                                    <% } else { %>
+                                        0
+                                    <% } %>
+                                </td>
+                                <td><a href="/device/<%= dev.id || dev._id %>" class="btn btn-sm btn-outline-primary">View Detail</a></td>
+                            </tr>
+                        <% }) %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="9" class="text-center py-4">
+                                No devices found. <a href="/devices">Add a device</a> to get started.
+                            </td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script src="/js/dashboard.js"></script>
+
+<%- include('partials/footer') %>

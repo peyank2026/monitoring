@@ -1,0 +1,203 @@
+<%- include('partials/header', { title: 'Latency Dashboard', activePage: 'latency' }) %>
+
+<% if (typeof success !== 'undefined' && success) { %>
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <%= success %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<% } %>
+<% if (typeof error !== 'undefined' && error) { %>
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <%= error %>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+<% } %>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="stat-card blue">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number"><%= totalHosts || 0 %></div>
+                    <div class="stat-label">Total Hosts</div>
+                </div>
+                <i class="fas fa-globe stat-icon text-primary"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card green">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number"><%= upHosts || 0 %></div>
+                    <div class="stat-label">Hosts Up</div>
+                </div>
+                <i class="fas fa-check-circle stat-icon text-success"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card red">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number"><%= downHosts || 0 %></div>
+                    <div class="stat-label">Hosts Down</div>
+                </div>
+                <i class="fas fa-times-circle stat-icon text-danger"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="stat-card orange">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-number"><%= avgLatency !== null ? Number(avgLatency).toFixed(2) : 'N/A' %></div>
+                    <div class="stat-label">Avg Latency (ms)</div>
+                </div>
+                <i class="fas fa-stopwatch stat-icon text-warning"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="chart-section d-none mb-4" id="latencyChartSection">
+    <div class="chart-container shadow-sm border-0">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h6 class="m-0 fw-bold" id="latencyChartTitle">
+                <i class="fas fa-chart-area text-success me-2"></i>Latency History
+            </h6>
+            <div class="d-flex align-items-center gap-2">
+                <label for="latencyRange" class="small text-muted text-nowrap mb-0">Rentang:</label>
+                <select id="latencyRange" class="form-select form-select-sm" onchange="changeLatencyRange()" style="width: 120px;">
+                    <option value="6h">6 Jam</option>
+                    <option value="24h" selected>24 Jam</option>
+                    <option value="7d">7 Hari</option>
+                    <option value="30d">30 Hari</option>
+                </select>
+                <button class="btn-close" onclick="hideLatencyChart()" aria-label="Close chart"></button>
+            </div>
+        </div>
+        <div style="position: relative; height: 360px;">
+            <canvas id="latencyChart"></canvas>
+        </div>
+        <div class="small text-muted mt-2">
+            Area abu-abu menunjukkan rentang latency minimum–maksimum, garis hijau menunjukkan rata-rata, dan bar merah menunjukkan packet loss.
+        </div>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h5 class="card-title mb-0">ICMP Host Monitoring</h5>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addHostModal">
+                <i class="fas fa-plus"></i> Add Host
+            </button>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Host Name</th>
+                        <th>IP / Hostname</th>
+                        <th>Location</th>
+                        <th>Status</th>
+                        <th>Latency</th>
+                        <th>Packet Loss</th>
+                        <th>Last Check (WIB)</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% if (hosts.length > 0) { %>
+                        <% hosts.forEach((host, index) => { %>
+                            <tr>
+                                <td><%= index + 1 %></td>
+                                <td><strong><%= host.name %></strong></td>
+                                <td><code><%= host.address %></code></td>
+                                <td><%= host.location || 'N/A' %></td>
+                                <td>
+                                    <% if (!host.is_active) { %>
+                                        <span class="badge bg-secondary">Disabled</span>
+                                    <% } else if (host.status === 'up') { %>
+                                        <span class="badge bg-success">Up</span>
+                                    <% } else if (host.status === 'down') { %>
+                                        <span class="badge bg-danger" title="<%= host.last_error || 'No reply' %>">Down</span>
+                                    <% } else { %>
+                                        <span class="badge bg-warning text-dark">Pending</span>
+                                    <% } %>
+                                </td>
+                                <td><%= host.latency_ms !== null ? Number(host.latency_ms).toFixed(2) + ' ms' : 'N/A' %></td>
+                                <td><%= host.packet_loss !== null ? Number(host.packet_loss).toFixed(1) + '%' : 'N/A' %></td>
+                                <td>
+                                    <%= host.last_check_at
+                                        ? new Date(host.last_check_at).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+                                        : 'Never' %>
+                                </td>
+                                <td class="text-nowrap">
+                                    <button type="button" class="btn btn-sm btn-outline-info latency-chart-btn" title="Latency chart"
+                                        data-host-id="<%= host.id %>" data-host-name="<%= host.name %>">
+                                        <i class="fas fa-chart-area"></i>
+                                    </button>
+                                    <form action="/hosts/<%= host.id %>/check" method="POST" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary" title="Check now">
+                                            <i class="fas fa-sync"></i>
+                                        </button>
+                                    </form>
+                                    <form action="/hosts/<%= host.id %>/delete" method="POST" class="d-inline" onsubmit="return confirm('Hapus host ini?');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger" title="Delete host">
+                                            <i class="fas fa-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                        <% }) %>
+                    <% } else { %>
+                        <tr>
+                            <td colspan="9" class="text-center py-4 text-muted">
+                                Belum ada host ICMP. Klik <strong>Add Host</strong> untuk mulai monitoring.
+                            </td>
+                        </tr>
+                    <% } %>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addHostModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="/hosts" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add ICMP Host</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Host Name</label>
+                        <input type="text" class="form-control" name="name" maxlength="100" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">IP Address / Hostname</label>
+                        <input type="text" class="form-control" name="address" maxlength="253" placeholder="192.168.1.1 atau example.com" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Location</label>
+                        <input type="text" class="form-control" name="location" maxlength="200">
+                    </div>
+                    <div class="form-text">Host akan diperiksa otomatis setiap satu menit.</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Add &amp; Check</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="/js/latency-dashboard.js"></script>
+
+<%- include('partials/footer') %>
