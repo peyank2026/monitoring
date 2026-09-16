@@ -5,6 +5,41 @@ const { pollDevice, pollAllDevices } = require('../services/snmp-poller');
 
 const router = express.Router();
 
+async function getDashboardData(conn) {
+  const devices = await conn.query('SELECT * FROM devices ORDER BY name');
+  const deviceSummaries = [];
+
+  for (const device of devices) {
+    const ifStats = await conn.query(`
+      SELECT
+        COUNT(*) as total_interfaces,
+        SUM(CASE WHEN if_status = 'up' THEN 1 ELSE 0 END) as up_count,
+        SUM(CASE WHEN rx_power IS NOT NULL AND rx_power < -25 THEN 1 ELSE 0 END) as alarm_count,
+        MAX(polled_at) as last_polled
+      FROM interface_data
+      WHERE device_id = ?
+        AND polled_at = (SELECT MAX(polled_at) FROM interface_data WHERE device_id = ?)
+    `, [device.id, device.id]);
+
+    deviceSummaries.push({
+      ...device,
+      interface_count: Number(ifStats[0]?.total_interfaces || 0),
+      up_count: Number(ifStats[0]?.up_count || 0),
+      alarm_count: Number(ifStats[0]?.alarm_count || 0),
+      last_polled: ifStats[0]?.last_polled || device.last_poll_at || null
+    });
+  }
+
+  return {
+    devices: deviceSummaries,
+    totalDevices: devices.length,
+    activeDevices: devices.filter(device => device.is_active).length,
+    onlineDevices: devices.filter(device => device.is_active && device.last_poll_success === 1).length,
+    offlineDevices: devices.filter(device => device.is_active && device.last_poll_success === 0).length,
+    totalAlarms: deviceSummaries.reduce((sum, device) => sum + device.alarm_count, 0)
+  };
+}
+
 /**
  * GET /dashboard - Main dashboard with device overview
  */
@@ -12,47 +47,12 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
   let conn;
   try {
     conn = await pool.getConnection();
-
-    // Get all devices
-    const devices = await conn.query('SELECT * FROM devices ORDER BY name');
-
-    // For each device, get interface summary from latest poll
-    const deviceSummaries = [];
-    for (const device of devices) {
-      const ifStats = await conn.query(`
-        SELECT 
-          COUNT(*) as total_interfaces,
-          SUM(CASE WHEN if_status = 'up' THEN 1 ELSE 0 END) as up_count,
-          SUM(CASE WHEN rx_power IS NOT NULL AND rx_power < -25 THEN 1 ELSE 0 END) as alarm_count,
-          MAX(polled_at) as last_polled
-        FROM interface_data 
-        WHERE device_id = ? 
-          AND polled_at = (SELECT MAX(polled_at) FROM interface_data WHERE device_id = ?)
-      `, [device.id, device.id]);
-
-      deviceSummaries.push({
-        ...device,
-        interface_count: ifStats[0]?.total_interfaces || 0,
-        up_count: ifStats[0]?.up_count || 0,
-        alarm_count: ifStats[0]?.alarm_count || 0,
-        last_polled: ifStats[0]?.last_polled || null
-      });
-    }
-
-    // Calculate totals
-    const totalDevices = devices.length;
-    const onlineDevices = devices.filter(d => d.is_active && d.last_poll_success === 1).length;
-    const offlineDevices = devices.filter(d => d.is_active && d.last_poll_success !== 1).length;
-    const totalAlarms = deviceSummaries.reduce((sum, d) => sum + (d.alarm_count || 0), 0);
+    const dashboardData = await getDashboardData(conn);
 
     res.render('dashboard', {
       title: 'Dashboard',
       activePage: 'dashboard',
-      devices: deviceSummaries,
-      totalDevices,
-      onlineDevices,
-      offlineDevices,
-      totalAlarms
+      ...dashboardData
     });
   } catch (err) {
     console.error('Dashboard error:', err);
@@ -61,10 +61,34 @@ router.get('/dashboard', isAuthenticated, async (req, res) => {
       activePage: 'dashboard',
       devices: [],
       totalDevices: 0,
+      activeDevices: 0,
       onlineDevices: 0,
       offlineDevices: 0,
       totalAlarms: 0
     });
+  } finally {
+    if (conn) conn.release();
+  }
+});
+
+/**
+ * GET /api/dashboard-summary - Live dashboard data without a full page reload
+ */
+router.get('/api/dashboard-summary', isAuthenticated, async (req, res) => {
+  let conn;
+
+  try {
+    conn = await pool.getConnection();
+    const dashboardData = await getDashboardData(conn);
+    res.set('Cache-Control', 'no-store');
+    res.json({
+      success: true,
+      ...dashboardData,
+      synced_at: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Dashboard summary error:', error);
+    res.status(500).json({ success: false, error: 'Gagal memperbarui dashboard' });
   } finally {
     if (conn) conn.release();
   }

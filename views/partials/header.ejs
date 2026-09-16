@@ -12,7 +12,8 @@
     <% if (typeof fullName !== 'undefined' && fullName) { %>
         <div class="sidebar">
             <div class="sidebar-brand">
-                <i class="fas fa-network-wired"></i> Switch Monitor
+                <img src="/images/network-switch.png" class="sidebar-brand-image" alt="">
+                <span>Switch Monitor</span>
             </div>
             <nav class="sidebar-nav">
                 <a href="/dashboard" class="<%= typeof activePage !== 'undefined' && activePage === 'dashboard' ? 'active' : '' %>">

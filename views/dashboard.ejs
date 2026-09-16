@@ -1,113 +1,194 @@
 <%- include('partials/header', { title: 'Switch Dashboard', activePage: 'dashboard' }) %>
 
-<div class="row mb-4">
-    <div class="col-md-3">
-        <div class="stat-card blue">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="stat-number"><%= typeof totalDevices !== 'undefined' ? totalDevices : 0 %></div>
-                    <div class="stat-label">Total Devices</div>
-                </div>
-                <i class="fas fa-server stat-icon text-primary"></i>
+<main class="dashboard-shell">
+    <section class="dashboard-hero" aria-labelledby="dashboardHeading">
+        <div class="dashboard-hero-content">
+            <div class="live-kicker">
+                <span class="live-dot" aria-hidden="true"></span>
+                Network operations live
             </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card green">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="stat-number"><%= typeof onlineDevices !== 'undefined' ? onlineDevices : 0 %></div>
-                    <div class="stat-label">Online Devices</div>
-                </div>
-                <i class="fas fa-check-circle stat-icon text-success"></i>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card red">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="stat-number"><%= typeof offlineDevices !== 'undefined' ? offlineDevices : 0 %></div>
-                    <div class="stat-label">Offline Devices</div>
-                </div>
-                <i class="fas fa-times-circle stat-icon text-danger"></i>
-            </div>
-        </div>
-    </div>
-    <div class="col-md-3">
-        <div class="stat-card orange">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="stat-number"><%= typeof totalAlarms !== 'undefined' ? totalAlarms : 0 %></div>
-                    <div class="stat-label">Alarm Interfaces</div>
-                </div>
-                <i class="fas fa-exclamation-triangle stat-icon text-warning"></i>
-            </div>
-        </div>
-    </div>
-</div>
+            <h2 id="dashboardHeading">Network Monitoring</h2>
+            <p>Monitor kesehatan switch, interface, dan alarm dari satu tampilan yang terus diperbarui.</p>
 
-<div class="card shadow-sm border-0">
-    <div class="card-body">
-        <h5 class="card-title mb-3">Monitored Switches</h5>
-        <div class="table-responsive">
-            <table class="table table-hover align-middle">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Device Name</th>
-                        <th>IP Address</th>
-                        <th>Vendor</th>
-                        <th>Location</th>
-                        <th>Status</th>
-                        <th>Interfaces (Up/Total)</th>
-                        <th>Alarms</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <% if (typeof devices !== 'undefined' && devices.length > 0) { %>
-                        <% devices.forEach((dev, index) => { %>
-                            <tr>
-                                <td><%= index + 1 %></td>
-                                <td><%= dev.name %></td>
-                                <td><%= dev.ip_address %></td>
-                                <td><span class="badge badge-<%= dev.vendor.toLowerCase() %>"><%= dev.vendor %></span></td>
-                                <td><%= dev.location || 'N/A' %></td>
-                                <td>
-                                    <% if (!dev.is_active) { %>
-                                        <span class="badge bg-secondary">Disabled</span>
-                                    <% } else if (dev.last_poll_success === 1) { %>
-                                        <span class="badge bg-success">Online</span>
-                                    <% } else if (dev.last_poll_success === 0) { %>
-                                        <span class="badge bg-danger" title="<%= dev.last_poll_error || 'Polling failed' %>">Offline</span>
-                                    <% } else { %>
-                                        <span class="badge bg-warning text-dark">Pending</span>
-                                    <% } %>
-                                </td>
-                                <td><%= dev.up_count || 0 %> / <%= dev.interface_count || 0 %></td>
-                                <td>
-                                    <% if (dev.alarm_count > 0) { %>
-                                        <span class="badge bg-warning text-dark"><%= dev.alarm_count %></span>
-                                    <% } else { %>
-                                        0
-                                    <% } %>
-                                </td>
-                                <td><a href="/device/<%= dev.id || dev._id %>" class="btn btn-sm btn-outline-primary">View Detail</a></td>
-                            </tr>
-                        <% }) %>
-                    <% } else { %>
+            <div class="hero-health-row">
+                <div class="sync-copy" aria-live="polite">
+                    <strong id="syncStatus">Live monitoring active</strong>
+                    <span><span id="wibClock">--:--:-- WIB</span> · refresh in <span id="refreshCountdown">30</span>s</span>
+                </div>
+            </div>
+        </div>
+        <div class="dashboard-hero-visual" aria-hidden="true">
+            <div class="switch-glow"></div>
+            <img src="/images/network-switch.png" alt="" class="hero-switch-image">
+        </div>
+    </section>
+
+    <section class="row g-3 mb-4" aria-label="Network summary">
+        <div class="col-sm-6 col-xl-3">
+            <article class="stat-card blue dashboard-stat-card">
+                <div>
+                    <div class="stat-number" data-stat="totalDevices"><%= totalDevices || 0 %></div>
+                    <div class="stat-label">Total Switches</div>
+                    <div class="stat-hint">Registered devices</div>
+                </div>
+                <div class="stat-visual switch-stat-visual">
+                    <img src="/images/network-switch.png" alt="" class="stat-switch-image">
+                </div>
+            </article>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <article class="stat-card green dashboard-stat-card">
+                <div>
+                    <div class="stat-number" data-stat="onlineDevices"><%= onlineDevices || 0 %></div>
+                    <div class="stat-label">Online</div>
+                    <div class="stat-hint">Responding normally</div>
+                </div>
+                <div class="stat-visual success"><i class="fas fa-signal"></i></div>
+            </article>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <article class="stat-card red dashboard-stat-card">
+                <div>
+                    <div class="stat-number" data-stat="offlineDevices"><%= offlineDevices || 0 %></div>
+                    <div class="stat-label">Offline</div>
+                    <div class="stat-hint">Needs attention</div>
+                </div>
+                <div class="stat-visual danger"><i class="fas fa-bolt"></i></div>
+            </article>
+        </div>
+        <div class="col-sm-6 col-xl-3">
+            <article class="stat-card orange dashboard-stat-card">
+                <div>
+                    <div class="stat-number" data-stat="totalAlarms"><%= totalAlarms || 0 %></div>
+                    <div class="stat-label">Optical Alarms</div>
+                    <div class="stat-hint">Interfaces below threshold</div>
+                </div>
+                <div class="stat-visual warning"><i class="fas fa-wave-square"></i></div>
+            </article>
+        </div>
+    </section>
+
+    <section class="card dashboard-table-card border-0">
+        <div class="card-body p-0">
+            <div class="dashboard-table-header">
+                <div>
+                    <span class="section-eyebrow">Inventory</span>
+                    <h5 class="card-title mb-1">Monitored switches</h5>
+                    <p class="text-muted mb-0"><span id="visibleDeviceCount"><%= devices.length %></span> device(s) shown</p>
+                </div>
+                <div class="dashboard-tools">
+                    <label class="dashboard-search" for="switchSearch">
+                        <i class="fas fa-search" aria-hidden="true"></i>
+                        <input id="switchSearch" type="search" placeholder="Search switch, IP, location…" autocomplete="off">
+                    </label>
+                    <select id="statusFilter" class="form-select form-select-sm" aria-label="Filter device status">
+                        <option value="all">All status</option>
+                        <option value="online">Online</option>
+                        <option value="offline">Offline</option>
+                        <option value="pending">Pending</option>
+                        <option value="disabled">Disabled</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+                <table class="table dashboard-device-table align-middle mb-0">
+                    <thead>
                         <tr>
-                            <td colspan="9" class="text-center py-4">
-                                No devices found. <a href="/devices">Add a device</a> to get started.
+                            <th>Device</th>
+                            <th>IP Address</th>
+                            <th>Vendor</th>
+                            <th>Location</th>
+                            <th>Status</th>
+                            <th>Interfaces</th>
+                            <th>Alarms</th>
+                            <th>Last Poll (WIB)</th>
+                            <th><span class="visually-hidden">Actions</span></th>
+                        </tr>
+                    </thead>
+                    <tbody id="deviceTableBody">
+                        <% if (devices.length > 0) { %>
+                            <% devices.forEach((dev) => {
+                                const deviceStatus = !dev.is_active
+                                    ? 'disabled'
+                                    : dev.last_poll_success === 1
+                                        ? 'online'
+                                        : dev.last_poll_success === 0
+                                            ? 'offline'
+                                            : 'pending';
+                                const interfacePercent = dev.interface_count > 0
+                                    ? Math.round((dev.up_count / dev.interface_count) * 100)
+                                    : 0;
+                            %>
+                                <tr data-device-id="<%= dev.id %>" data-status="<%= deviceStatus %>"
+                                    data-search="<%= `${dev.name} ${dev.ip_address} ${dev.vendor} ${dev.location || ''}`.toLowerCase() %>">
+                                    <td>
+                                        <div class="device-identity">
+                                            <div class="device-thumbnail"><img src="/images/network-switch.png" alt=""></div>
+                                            <div>
+                                                <strong><%= dev.name %></strong>
+                                                <small>Managed switch</small>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td><code><%= dev.ip_address %></code></td>
+                                    <td><span class="badge badge-<%= dev.vendor.toLowerCase() %>"><%= dev.vendor %></span></td>
+                                    <td><%= dev.location || 'N/A' %></td>
+                                    <td data-field="status">
+                                        <span class="device-status status-<%= deviceStatus %>" title="<%= dev.last_poll_error || '' %>">
+                                            <span class="device-status-dot" aria-hidden="true"></span>
+                                            <%= deviceStatus.charAt(0).toUpperCase() + deviceStatus.slice(1) %>
+                                        </span>
+                                    </td>
+                                    <td data-field="interfaces">
+                                        <div class="interface-summary">
+                                            <span><strong><%= dev.up_count || 0 %></strong> / <%= dev.interface_count || 0 %> up</span>
+                                            <div class="interface-progress" aria-hidden="true"><span style="width: <%= interfacePercent %>%"></span></div>
+                                        </div>
+                                    </td>
+                                    <td data-field="alarms">
+                                        <span class="alarm-count <%= dev.alarm_count > 0 ? 'has-alarm' : '' %>">
+                                            <i class="fas fa-triangle-exclamation" aria-hidden="true"></i>
+                                            <%= dev.alarm_count || 0 %>
+                                        </span>
+                                    </td>
+                                    <td data-field="lastPoll">
+                                        <span class="last-poll-time">
+                                            <%= dev.last_polled
+                                                ? new Date(dev.last_polled).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })
+                                                : 'Never' %>
+                                        </span>
+                                    </td>
+                                    <td class="text-end">
+                                        <a href="/device/<%= dev.id %>" class="device-detail-link" aria-label="View <%= dev.name %> details">
+                                            <i class="fas fa-arrow-right"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            <% }) %>
+                        <% } else { %>
+                            <tr id="emptyDeviceRow">
+                                <td colspan="9" class="dashboard-empty-state">
+                                    <img src="/images/network-switch.png" alt="" class="empty-switch-image">
+                                    <strong>No switches monitored yet</strong>
+                                    <span>Add your first switch to start collecting live network data.</span>
+                                    <a href="/devices" class="btn btn-primary btn-sm">Add device</a>
+                                </td>
+                            </tr>
+                        <% } %>
+                        <tr id="filteredEmptyRow" class="d-none">
+                            <td colspan="9" class="dashboard-empty-state py-5">
+                                <i class="fas fa-filter-circle-xmark"></i>
+                                <strong>No matching switches</strong>
+                                <span>Try another search or status filter.</span>
                             </td>
                         </tr>
-                    <% } %>
-                </tbody>
-            </table>
+                    </tbody>
+                </table>
+            </div>
         </div>
-    </div>
-</div>
+    </section>
+</main>
 
 <script src="/js/dashboard.js"></script>
 
